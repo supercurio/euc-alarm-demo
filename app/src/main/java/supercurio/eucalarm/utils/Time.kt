@@ -1,7 +1,6 @@
 package supercurio.eucalarm.utils
 
 import android.os.SystemClock
-import android.util.Log
 import com.google.protobuf.Timestamp
 import com.google.protobuf.timestamp
 import kotlinx.coroutines.delay
@@ -20,9 +19,7 @@ object TimeUtils {
     fun timestampSinceNanos(nanoseconds: Long) =
         timestampFromNanos(SystemClock.elapsedRealtimeNanos() - nanoseconds)
 
-    fun timestampToMs(timestamp: Timestamp) = timestampToNanos(timestamp) / 1_000_000
-
-    fun timestampToNanos(timestamp: Timestamp) =
+    private fun timestampToNanos(timestamp: Timestamp) =
         (timestamp.seconds * NANOS_PER_SECOND + timestamp.nanos)
 
     suspend fun delayFromNotification(nanoStart: Long, notification: GattNotification) {
@@ -31,5 +28,4 @@ object TimeUtils {
         val delayMs = (notifNanos - elapsed) / 1_000_000
         if (delayMs > 0) delay(delayMs)
     }
-
 }
