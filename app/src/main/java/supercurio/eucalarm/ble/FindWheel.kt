@@ -30,7 +30,7 @@ class FindWheel(private val context: Context, private val scope: CoroutineScope)
      * BLE Scanner
      */
 
-    fun startLeScan() {
+    private fun startLeScan() {
         Log.i(TAG, "Start scan")
 
         bluetoothLeScanner = context.getSystemService<BluetoothManager>()!!

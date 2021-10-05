@@ -1,7 +1,6 @@
 package supercurio.eucalarm.ble
 
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothGattService
 import supercurio.wheeldata.recording.BleDeviceInfo
 

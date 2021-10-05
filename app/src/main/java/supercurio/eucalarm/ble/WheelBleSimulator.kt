@@ -10,7 +10,7 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.getSystemService
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.utils.TimeUtils
@@ -19,7 +19,11 @@ import java.io.File
 import java.io.InputStream
 import java.util.*
 
-class WheelBleSimulator(private val context: Context, val file: File) {
+class WheelBleSimulator(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    private val file: File
+) {
 
     private var input: InputStream? = null
     private val btManager = context.getSystemService<BluetoothManager>()!!
@@ -96,7 +100,7 @@ class WheelBleSimulator(private val context: Context, val file: File) {
         advertiser?.stopAdvertising(advertiserCallback)
     }
 
-    private suspend fun fakeReplay(device: BluetoothDevice) {
+    private suspend fun mockReplay(device: BluetoothDevice) {
         var value = 1.toByte()
 
         val characteristic = server.services.mapNotNull { service ->
@@ -139,7 +143,7 @@ class WheelBleSimulator(private val context: Context, val file: File) {
         }
     }
 
-    fun resetInput(): InputStream {
+    private fun resetInput(): InputStream {
         val input = file.inputStream().buffered()
         this.input = input
         return input
@@ -200,16 +204,15 @@ class WheelBleSimulator(private val context: Context, val file: File) {
             offset: Int,
             value: ByteArray?
         ) {
-
-            GlobalScope.launch {
+            scope.launch {
                 connectedDevice = device
                 try {
                     replay(device)
                 } catch (t: Throwable) {
                     t.printStackTrace()
                 }
+                server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
             }
-            server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
         }
     }
 

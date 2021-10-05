@@ -28,6 +28,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
@@ -254,8 +255,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playLastRecording() {
-        val lastRecordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
-        player = WheelBlePlayer(lastRecordingFile.inputStream(), scope)
+        val input = WheelBleRecorder.getLastRecordingFile(applicationContext)?.inputStream()
+            ?: resources.openRawResource(R.raw.sample)
+        player = WheelBlePlayer(input, scope)
 
         scope.launch { player?.decode(wheelData) }
     }
