@@ -11,7 +11,7 @@ import java.nio.ByteOrder
 import java.util.*
 import kotlin.math.roundToInt
 
-class GotwayWheel(val wheelData: WheelData, private val scope: CoroutineScope) {
+class GotwayWheel(val wheelData: WheelData) {
 
     private val ringBuffer = ArrayDeque<Byte>(40)
     private val frame = ByteBuffer.allocate(24)
@@ -68,13 +68,11 @@ class GotwayWheel(val wheelData: WheelData, private val scope: CoroutineScope) {
                     listOf(frame.get(), frame.get(), frame.get(), frame.get())
                         .toHexString()
 
-                wheelData.voltage = voltage
-                wheelData.speed = speed
-                wheelData.tripDistance = distance
-                wheelData.current = current
-                wheelData.temperature = temperature
-
-                scope.launch { wheelData.timestamp.emit(System.nanoTime()) }
+                wheelData.voltage.value = voltage
+                wheelData.speed.value = speed
+                wheelData.tripDistance.value = distance
+                wheelData.current.value = current
+                wheelData.temperature.value = temperature
 
                 if (DATA_LOGGING) Log.i(
                     TAG, "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
@@ -113,10 +111,8 @@ class GotwayWheel(val wheelData: WheelData, private val scope: CoroutineScope) {
                     frame.get(),
                 )
 
-                wheelData.totalDistance = totalDistance
-                wheelData.beeper = beeper.toInt() != 0
-
-                scope.launch { wheelData.timestamp.emit(System.nanoTime()) }
+                wheelData.totalDistance.value = totalDistance
+                wheelData.beeper.value = beeper.toInt() != 0
 
                 if (DATA_LOGGING) Log.i(
                     TAG, "total distance: $totalDistance km, pedal mode: $pedalMode, " +

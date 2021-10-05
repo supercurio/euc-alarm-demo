@@ -29,6 +29,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.R
+import supercurio.eucalarm.feedback.Alert
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
@@ -54,8 +55,12 @@ class MainActivity : ComponentActivity() {
             PermissionsLayout {}
         }
 
-        findWheel = FindWheel(applicationContext, scope)
-        wheelConnection = WheelConnection(wheelData, scope)
+        findWheel = FindWheel(applicationContext)
+        wheelConnection = WheelConnection(wheelData)
+
+        Alert(applicationContext, wheelData).apply {
+            scope.launch { setup() }
+        }
     }
 
     override fun onDestroy() {
@@ -159,9 +164,9 @@ class MainActivity : ComponentActivity() {
             findWheel.foundWheel.collectAsState().value?.let {
                 Text(
                     modifier = Modifier.clickable(onClick = {
-                        wheelConnection.connectDevice(applicationContext, it.device)
+                        wheelConnection.connectDevice(applicationContext, it)
                     }),
-                    text = "Device name: ${it.device.name}, addr:${it.device.address}"
+                    text = "Device name: ${it.name}, addr:${it.address}"
                 )
             }
 
@@ -184,30 +189,40 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val wheelDataTimestamp by wheelData.timestamp.collectAsState()
-            if (wheelDataTimestamp > 0) {
-                val df = DecimalFormat("#.###")
-                Text("Timestamp: $wheelDataTimestamp")
-                Text("Voltage: ${df.format(wheelData.voltage)} V ", fontSize = 30.sp)
-                Text("Speed: ${df.format(wheelData.speed)} km/h ", fontSize = 30.sp)
-                Text("Trip Distance: ${wheelData.tripDistance} km ", fontSize = 30.sp)
-                Text("Total Distance: ${wheelData.totalDistance} km ", fontSize = 30.sp)
-                Text("Current: ${wheelData.current} A ", fontSize = 30.sp)
-                Text("Temperature: ${df.format(wheelData.temperature)} °C ", fontSize = 30.sp)
-                Column(
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(color = if (wheelData.beeper) Color.Red else Color.Green)
-                        .padding(20.dp)
-                ) {
-                    Text(
-                        "Beeper: ${(if (wheelData.beeper) "ON" else "OFF / Unknown")}",
-                        fontSize = 30.sp,
-                    )
-                }
+            val df = DecimalFormat("#.###")
+            wheelData.voltage.collectAsState().value?.let {
+                Text("Voltage: ${df.format(it)} V ", fontSize = 30.sp)
             }
+            wheelData.speed.collectAsState().value?.let {
+                Text("Speed: ${df.format(it)} km/h ", fontSize = 30.sp)
+            }
+            wheelData.tripDistance.collectAsState().value?.let {
+                Text("Trip Distance: $it km ", fontSize = 30.sp)
+            }
+            wheelData.totalDistance.collectAsState().value?.let {
+                Text("Total Distance: $it km ", fontSize = 30.sp)
+            }
+            wheelData.current.collectAsState().value?.let {
+                Text("Current: $it A ", fontSize = 30.sp)
+            }
+            wheelData.temperature.collectAsState().value?.let {
+                Text("Temperature: ${df.format(it)} °C ", fontSize = 30.sp)
+            }
+            val beeper = wheelData.beeper.collectAsState().value
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color = if (beeper) Color.Red else Color.Green)
+                    .padding(20.dp)
+            ) {
+                Text(
+                    "Beeper: ${(if (beeper) "ON" else "OFF / Unknown")}",
+                    fontSize = 30.sp,
+                )
+            }
+
         }
     }
 
@@ -264,7 +279,7 @@ class MainActivity : ComponentActivity() {
 
     private fun simulateLastRecording() {
         val lastRecordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
-        simulator = WheelBleSimulator(applicationContext, lastRecordingFile)
+        simulator = WheelBleSimulator(applicationContext, scope, lastRecordingFile)
 
         scope.launch { simulator?.start() }
     }

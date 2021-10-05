@@ -25,8 +25,8 @@ class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) 
     }
 
     suspend fun decode(wheelData: WheelData) {
-        val gotwayWheel = GotwayWheel(wheelData, scope)
-        val veteranWheel = VeteranWheel(wheelData, scope)
+        val gotwayWheel = GotwayWheel(wheelData)
+        val veteranWheel = VeteranWheel(wheelData)
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         playing = true

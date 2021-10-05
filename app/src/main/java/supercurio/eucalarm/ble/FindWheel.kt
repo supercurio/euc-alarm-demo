@@ -1,24 +1,19 @@
 package supercurio.eucalarm.ble
 
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
+import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.content.getSystemService
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import supercurio.eucalarm.oems.GotwayWheel
 
-class FindWheel(private val context: Context, private val scope: CoroutineScope) {
+class FindWheel(private val context: Context) {
 
     private var bluetoothLeScanner: BluetoothLeScanner? = null
     val isScanning = MutableStateFlow(false)
-    val foundWheel = MutableStateFlow<WheelFound?>(null)
+    val foundWheel = MutableStateFlow<BluetoothDevice?>(null)
 
     fun find() {
         startLeScan()
@@ -46,22 +41,20 @@ class FindWheel(private val context: Context, private val scope: CoroutineScope)
             .build()
 
         bluetoothLeScanner?.startScan(listOf(scanFilter), scanSettings, leScanCallback)
-        scope.launch { isScanning.emit(true) }
+        isScanning.value = true
     }
 
     fun stopLeScan() {
         bluetoothLeScanner?.stopScan(leScanCallback)
-        scope.launch { isScanning.emit(false) }
+        isScanning.value = false
     }
 
     private val leScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             Log.i(TAG, "LE scan result: $result")
 
-            scope.launch {
-                foundWheel.emit(WheelFound(result.device))
-                isScanning.emit(false)
-            }
+            foundWheel.value = result.device
+            isScanning.value = false
 
             bluetoothLeScanner?.stopScan(this)
         }
@@ -69,7 +62,7 @@ class FindWheel(private val context: Context, private val scope: CoroutineScope)
         override fun onScanFailed(errorCode: Int) {
             super.onScanFailed(errorCode)
             Log.e(TAG, "Scan failed")
-            scope.launch { isScanning.emit(false) }
+            isScanning.value = false
         }
     }
 
@@ -103,7 +96,7 @@ class FindWheel(private val context: Context, private val scope: CoroutineScope)
                 it.uuid.toString() == GotwayWheel.SERVICE_UUID
             }?.let {
                 stopLeScan()
-                scope.launch { foundWheel.emit(WheelFound(gatt.device)) }
+                foundWheel.value = gatt.device
             }
         }
     }

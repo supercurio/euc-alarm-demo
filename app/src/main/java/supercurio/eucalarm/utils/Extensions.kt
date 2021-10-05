@@ -1,8 +1,8 @@
 package supercurio.eucalarm.utils
 
-import android.bluetooth.BluetoothGattCharacteristic
 //import android.util.Log
 //import com.google.protobuf.util.JsonFormat
+import android.bluetooth.BluetoothGattCharacteristic
 import supercurio.wheeldata.recording.BleDeviceInfo
 import supercurio.wheeldata.recording.GattNotification
 import supercurio.wheeldata.recording.messageType

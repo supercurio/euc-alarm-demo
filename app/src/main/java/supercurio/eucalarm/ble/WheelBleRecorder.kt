@@ -55,7 +55,7 @@ class WheelBleRecorder(
 
     private fun start() = scope.launch {
         connection.changedCharacteristic.collect { characteristic ->
-            writeNotificationData(characteristic)
+            characteristic?.let { writeNotificationData(it) }
         }
     }
 

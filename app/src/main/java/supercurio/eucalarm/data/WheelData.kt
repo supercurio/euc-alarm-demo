@@ -3,13 +3,38 @@ package supercurio.eucalarm.data
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class WheelData {
-    var voltage: Double? = null // Volts
-    var speed: Double? = null // km/h
-    var tripDistance: Double? = null // kilometer
-    var totalDistance: Double? = null // kilometer
-    var current: Double? = null // amperes
-    var temperature: Double? = null // °C
-    var beeper = false
+    /**
+     *  Volts
+     */
+    val voltage = MutableStateFlow<Double?>(null)
 
-    val timestamp = MutableStateFlow(0L)
+    /**
+     * km/h
+     */
+    val speed = MutableStateFlow<Double?>(null)
+
+    /**
+     * kilometer
+     */
+    val tripDistance = MutableStateFlow<Double?>(null)
+
+    /**
+     * kilometer
+     */
+    val totalDistance = MutableStateFlow<Double?>(null)
+
+    /**
+     * amperes
+     */
+    val current = MutableStateFlow<Double?>(null)
+
+    /**
+     * °C
+     */
+    val temperature = MutableStateFlow<Double?>(null)
+
+    /**
+     * Beeper status
+     */
+    val beeper = MutableStateFlow(false)
 }

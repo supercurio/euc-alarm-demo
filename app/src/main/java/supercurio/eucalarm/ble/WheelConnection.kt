@@ -3,25 +3,22 @@ package supercurio.eucalarm.ble
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asStateFlow
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import java.util.*
 
-class WheelConnection(val wheelData: WheelData, scope: CoroutineScope) {
+class WheelConnection(val wheelData: WheelData) {
 
     private var bleGatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
-    private val gotwayWheel = GotwayWheel(wheelData, scope)
-    private val veteranWheel = VeteranWheel(wheelData, scope)
+    private val gotwayWheel = GotwayWheel(wheelData)
+    private val veteranWheel = VeteranWheel(wheelData)
 
-    private val _changedCharacteristic = MutableSharedFlow<BluetoothGattCharacteristic>()
-    val changedCharacteristic = _changedCharacteristic.asSharedFlow()
+    private val _changedCharacteristic = MutableStateFlow<BluetoothGattCharacteristic?>(null)
+    val changedCharacteristic = _changedCharacteristic.asStateFlow()
 
     val bleConnectionReady = MutableStateFlow(false)
 
@@ -55,10 +52,10 @@ class WheelConnection(val wheelData: WheelData, scope: CoroutineScope) {
                     Log.i(TAG, "STATE_CONNECTED")
                     gatt.discoverServices()
                 }
-                BluetoothGatt.STATE_DISCONNECTED -> scope.launch {
+                BluetoothGatt.STATE_DISCONNECTED -> {
                     Log.i(TAG, "STATE_DISCONNECTED")
                     bleGatt = null
-                    bleConnectionReady.emit(false)
+                    bleConnectionReady.value = false
                 }
             }
         }
@@ -66,7 +63,7 @@ class WheelConnection(val wheelData: WheelData, scope: CoroutineScope) {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
             setupGotwayType()
-            scope.launch { bleConnectionReady.emit(true) }
+            bleConnectionReady.value = true
         }
 
         override fun onCharacteristicChanged(
@@ -78,9 +75,7 @@ class WheelConnection(val wheelData: WheelData, scope: CoroutineScope) {
             gotwayWheel.findFrame(values)
             veteranWheel.findFrame(values)
 
-            scope.launch {
-                _changedCharacteristic.emit(characteristic)
-            }
+            _changedCharacteristic.value = characteristic
         }
     }
 

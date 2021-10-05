@@ -1,13 +1,11 @@
 package supercurio.eucalarm.oems
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import supercurio.eucalarm.data.WheelData
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 
-class VeteranWheel(val wheelData: WheelData, private val scope: CoroutineScope) {
+class VeteranWheel(val wheelData: WheelData) {
 
     private val ringBuffer = ArrayDeque<Byte>(40)
     private val frame = ByteBuffer.allocate(36)
@@ -36,13 +34,12 @@ class VeteranWheel(val wheelData: WheelData, private val scope: CoroutineScope) 
         val current = frame.short / 10.0
         val temperature = frame.short / 100.0
 
-        wheelData.voltage = voltage
-        wheelData.speed = speed
-        wheelData.tripDistance = distance
-        wheelData.totalDistance = totalDistance
-        wheelData.current = current
-        wheelData.temperature = temperature
-        scope.launch { wheelData.timestamp.emit(System.nanoTime()) }
+        wheelData.voltage.value = voltage
+        wheelData.speed.value = speed
+        wheelData.tripDistance.value = distance
+        wheelData.totalDistance.value = totalDistance
+        wheelData.current.value = current
+        wheelData.temperature.value = temperature
     }
 
     private fun revInt(value: Int): Int {
@@ -51,5 +48,4 @@ class VeteranWheel(val wheelData: WheelData, private val scope: CoroutineScope) 
         val revBuf = byteArrayOf(buffer[2], buffer[3], buffer[0], buffer[1])
         return ByteBuffer.wrap(revBuf).int
     }
-
 }
