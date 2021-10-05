@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">EUC Alarm</string>
+    <string name="service_channel_name">Background operation indicator</string>
+</resources>

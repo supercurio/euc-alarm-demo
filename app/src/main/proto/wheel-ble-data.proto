@@ -1,0 +1,12 @@
+syntax = "proto3";
+package supercurio.wheeldata.recording;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+
+message GattNotification {
+  uint32 characteristic_key = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  bytes bytes = 3;
+}

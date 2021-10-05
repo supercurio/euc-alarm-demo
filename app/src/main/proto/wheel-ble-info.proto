@@ -1,0 +1,26 @@
+syntax = "proto3";
+package supercurio.wheeldata.recording;
+
+option java_multiple_files = true;
+
+message BleDeviceInfo {
+    string address = 1;
+    optional string name = 2;
+    repeated GattService gatt_services = 3;
+}
+
+message GattService {
+    string uuid = 1;
+    int32 type = 2;
+    map <uint32, GattCharacteristic> gatt_characteristics = 3;
+}
+
+message GattCharacteristic {
+    string uuid = 1;
+    int32 properties = 2;
+    repeated GattDescriptor gatt_descriptors = 3;
+}
+
+message GattDescriptor {
+    string uuid = 1;
+}

@@ -1,0 +1,234 @@
+package supercurio.eucalarm.ble
+
+import android.bluetooth.*
+import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertiseData
+import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.Context
+import android.os.ParcelUuid
+import android.os.SystemClock
+import android.util.Log
+import androidx.core.content.getSystemService
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import supercurio.eucalarm.oems.GotwayWheel
+import supercurio.eucalarm.utils.TimeUtils
+import supercurio.wheeldata.recording.MessageType
+import java.io.File
+import java.io.InputStream
+import java.util.*
+
+class WheelBleSimulator(private val context: Context, val file: File) {
+
+    private var input: InputStream? = null
+    private val btManager = context.getSystemService<BluetoothManager>()!!
+    private val characteristicsKeys = CharacteristicsKeys()
+    private lateinit var server: SuspendingGattServer
+    private var advertiser: BluetoothLeAdvertiser? = null
+    private var connectedDevice: BluetoothDevice? = null
+    private var doReplay = false
+
+    suspend fun start() {
+        input = resetInput()
+        server = SuspendingGattServer(context, gattServerCallback)
+        readDeviceInfo().let { deviceInfo ->
+            characteristicsKeys.fromDeviceInfo(deviceInfo)
+
+            btManager.adapter.name = deviceInfo.name
+
+            deviceInfo.gattServicesList.forEach { service ->
+                Log.i(TAG, "Service: ${service.uuid} type: ${service.type}")
+
+                if (SKIP_SERVICES.contains(service.uuid)) return@forEach
+
+                val srv = BluetoothGattService(
+                    UUID.fromString(service.uuid),
+                    service.type
+                )
+
+                service.gattCharacteristicsMap.values.forEach { characteristic ->
+                    val char = BluetoothGattCharacteristic(
+                        UUID.fromString(characteristic.uuid),
+                        characteristic.properties,
+                        BluetoothGattCharacteristic.PERMISSION_READ or
+                                BluetoothGattCharacteristic.PERMISSION_WRITE
+                    )
+
+                    characteristic.gattDescriptorsList.forEach { descriptor ->
+                        val desc = BluetoothGattDescriptor(
+                            UUID.fromString(descriptor.uuid),
+                            BluetoothGattDescriptor.PERMISSION_READ or
+                                    BluetoothGattDescriptor.PERMISSION_WRITE
+                        )
+                        char.addDescriptor(desc)
+                    }
+                    srv.addCharacteristic(char)
+                }
+
+                server.addService(srv)
+            }
+        }
+
+        startAdvertising()
+    }
+
+    private fun readDeviceInfo() = MessageType
+        .parseDelimitedFrom(input)
+        .bleDeviceInfo
+
+    private fun startAdvertising() {
+        val advertiseSettings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+            .setConnectable(true)
+            .build()
+        val advertiseData = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
+            .addServiceUuid(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID))
+            .build()
+
+        advertiser = btManager.adapter.bluetoothLeAdvertiser.apply {
+            startAdvertising(advertiseSettings, advertiseData, advertiserCallback)
+        }
+    }
+
+    private fun stopAdvertising() {
+        advertiser?.stopAdvertising(advertiserCallback)
+    }
+
+    private suspend fun fakeReplay(device: BluetoothDevice) {
+        var value = 1.toByte()
+
+        val characteristic = server.services.mapNotNull { service ->
+            service.characteristics.find { char ->
+                char.uuid.toString() == GotwayWheel.DATA_CHARACTERISTIC_UUID
+            }
+        }.first()
+
+        while (true) {
+            value = (((value + 1) % Byte.MAX_VALUE).toByte())
+            characteristic.value = byteArrayOf(value)
+            server.notifyCharacteristicChanged(device, characteristic, true)
+            Log.i(TAG, "value: $value")
+        }
+    }
+
+    private suspend fun replay(device: BluetoothDevice) {
+        val input = resetInput()
+        doReplay = true
+        val nanoStart = SystemClock.elapsedRealtimeNanos()
+
+        while (input.available() > 0 && doReplay) {
+            val message = MessageType.parseDelimitedFrom(input)
+
+            when {
+                message.hasGattNotification() -> {
+                    val notification = message.gattNotification
+                    val characteristic = characteristicsKeys.getCharacteristic(
+                        server.services,
+                        notification.characteristicKey
+                    ) ?: continue
+
+                    characteristic.value = notification.bytes.toByteArray()
+
+                    TimeUtils.delayFromNotification(nanoStart, notification)
+
+                    server.notifyCharacteristicChanged(device, characteristic, false)
+                }
+            }
+        }
+    }
+
+    fun resetInput(): InputStream {
+        val input = file.inputStream().buffered()
+        this.input = input
+        return input
+    }
+
+    private fun stopReplay() {
+        doReplay = false
+    }
+
+    private val gattServerCallback = object : BluetoothGattServerCallback() {
+
+        override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
+            val newStateText = when (newState) {
+                BluetoothGattServer.STATE_CONNECTING -> "STATE_CONNECTING"
+                BluetoothGattServer.STATE_CONNECTED -> "STATE_CONNECTED"
+                BluetoothGattServer.STATE_DISCONNECTING -> "STATE_DISCONNECTING"
+                BluetoothGattServer.STATE_DISCONNECTED -> "STATE_DISCONNECTED"
+                else -> ""
+            }
+            Log.i(TAG, "Device: $device, status: $status, newState: $newStateText")
+            if (newState == BluetoothGattServer.STATE_CONNECTING ||
+                newState == BluetoothGattServer.STATE_CONNECTED
+            ) stopAdvertising()
+
+            if (newState == BluetoothGattServer.STATE_DISCONNECTED) {
+                stopReplay()
+                startAdvertising()
+            }
+        }
+
+        override fun onCharacteristicWriteRequest(
+            device: BluetoothDevice?,
+            requestId: Int,
+            characteristic: BluetoothGattCharacteristic?,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray?
+        ) {
+            Log.i(TAG, "onCharacteristicWriteRequest")
+        }
+
+        override fun onCharacteristicReadRequest(
+            device: BluetoothDevice?,
+            requestId: Int,
+            offset: Int,
+            characteristic: BluetoothGattCharacteristic?
+        ) {
+            Log.i(TAG, "onCharacteristicReadRequest")
+        }
+
+        override fun onDescriptorWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            descriptor: BluetoothGattDescriptor,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray?
+        ) {
+
+            GlobalScope.launch {
+                connectedDevice = device
+                try {
+                    replay(device)
+                } catch (t: Throwable) {
+                    t.printStackTrace()
+                }
+            }
+            server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+        }
+    }
+
+    private val advertiserCallback = object : AdvertiseCallback() {}
+
+    fun stop() {
+        stopReplay()
+        input?.close()
+        stopAdvertising()
+        server.clearServices()
+        server.close()
+        characteristicsKeys.clear()
+    }
+
+    companion object {
+        private const val TAG = "WheelBleSimulator"
+        private val SKIP_SERVICES = listOf(
+            "00001800-0000-1000-8000-00805f9b34fb",
+            "00001801-0000-1000-8000-00805f9b34fb",
+        )
+    }
+}
