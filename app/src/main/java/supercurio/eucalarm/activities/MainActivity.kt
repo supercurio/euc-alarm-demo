@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -29,9 +30,9 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.R
-import supercurio.eucalarm.feedback.Alert
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelData
+import supercurio.eucalarm.feedback.Alert
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import java.text.DecimalFormat
 
@@ -46,8 +47,9 @@ class MainActivity : ComponentActivity() {
     private var wheelBleRecorder: WheelBleRecorder? = null
     private var player: WheelBlePlayer? = null
     private var simulator: WheelBleSimulator? = null
-
     private val wheelData = WheelData()
+    private val alert = Alert(wheelData)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,13 +60,12 @@ class MainActivity : ComponentActivity() {
         findWheel = FindWheel(applicationContext)
         wheelConnection = WheelConnection(wheelData)
 
-        Alert(applicationContext, wheelData).apply {
-            scope.launch { setup() }
-        }
+        scope.launch { alert.setup(applicationContext) }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
 
         findWheel.stopLeScan()
         wheelConnection.disconnectDevice()
@@ -78,9 +79,7 @@ class MainActivity : ComponentActivity() {
         var doNotShowRationale by rememberSaveable { mutableStateOf(false) }
 
         val locationPermissionState =
-            rememberPermissionState(
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            )
+            rememberPermissionState(android.Manifest.permission.ACCESS_FINE_LOCATION)
         PermissionRequired(
             permissionState = locationPermissionState,
             permissionNotGrantedContent = {
@@ -137,6 +136,7 @@ class MainActivity : ComponentActivity() {
                 if (!scanningState) Text("Find Wheel") else Text("Stop Wheel Scan")
             }
 
+            Button(onClick = { alert.toggle()}) { Text(text = "Alert Test") }
             var playingState by remember { mutableStateOf(false) }
             if (!playingState)
                 Button(onClick = {

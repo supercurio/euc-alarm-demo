@@ -2,7 +2,7 @@ package supercurio.eucalarm.feedback
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.media.AudioManager
+import android.media.*
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -10,13 +10,185 @@ import android.util.Log
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.flow.collect
 import supercurio.eucalarm.data.WheelData
+import kotlin.math.atan
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
-class Alert(private val context: Context, private val wheelData: WheelData) {
+class Alert(private val wheelData: WheelData) {
 
-    private val audioManager = context.getSystemService<AudioManager>()!!
-    private val vibrator = context.getSystemService<Vibrator>()!!
+    /*
+     * TODO:
+     *  Listen to changes in audio output configuration and reconfigure the AudioTrack
+     *  with lowest-latency parameters
+     */
 
-    suspend fun setup() {
+
+    private lateinit var audioManager: AudioManager
+    private lateinit var vibrator: Vibrator
+    private lateinit var alertTrack: AudioTrack
+    private lateinit var keepAliveTrack: AudioTrack
+
+    private var isPlaying = false
+
+    suspend fun setup(context: Context) {
+        audioManager = context.getSystemService()!!
+        vibrator = context.getSystemService()!!
+
+        keepAliveTrack = setupKeepAliveTrack()
+        alertTrack = setupAlertTrack()
+
+        wheelData.beeper.collect {
+            when (it) {
+                true -> play()
+                false -> stop()
+            }
+        }
+    }
+
+
+    private fun requestAudioFocus() =
+        audioManager.requestAudioFocus(
+            afChangeListener,
+            AudioManager.STREAM_MUSIC,
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+        )
+
+    private fun releaseAudioFocus() {
+        audioManager.abandonAudioFocus(afChangeListener)
+    }
+
+    private fun setupAlertTrack(): AudioTrack {
+        val audioAttributes = AudioAttributes.Builder()
+            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+            .build()
+
+        val audioFormat = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(SAMPLE_RATE)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+
+        val track = AudioTrack.Builder()
+            .setAudioFormat(audioFormat)
+            .setAudioAttributes(audioAttributes)
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(BUFFER_FRAMES * Short.SIZE_BYTES)
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+            }
+            .build()
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    addOnRoutingChangedListener(
+                        { routing ->
+                            Log.i(
+                                TAG,
+                                "routed device: ${audioDeviceInfoText(routing.routedDevice)}, " +
+                                        "preferredDevice: ${audioDeviceInfoText(routing.routedDevice)}"
+                            )
+                        }, null
+                    )
+                } else {
+                    addOnRoutingChangedListener(AudioTrack.OnRoutingChangedListener { routing ->
+                        Log.i(
+                            TAG, "routed device: ${audioDeviceInfoText(routing.routedDevice)}, " +
+                                    "preferredDevice: ${audioDeviceInfoText(routing.routedDevice)}"
+                        )
+                    }, null)
+                }
+            }
+
+
+        val bufferSizeInFrames = track.bufferSizeInFrames
+
+        Log.i(TAG, "buffer size in frames: $bufferSizeInFrames")
+
+        val buf = getAudioBuffer(FREQUENCY, bufferSizeInFrames, SAMPLE_RATE)
+        track.write(buf, 0, buf.size)
+
+        return track
+    }
+
+    private fun setupKeepAliveTrack(): AudioTrack {
+
+        val frames = 64
+
+        val audioAttributes = AudioAttributes.Builder()
+            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+            .build()
+
+        val audioFormat = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(SAMPLE_RATE)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+
+        val track = AudioTrack.Builder()
+            .setAudioFormat(audioFormat)
+            .setAudioAttributes(audioAttributes)
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(frames * Short.SIZE_BYTES)
+            .build()
+
+        track.write(ShortArray(frames), 0, frames)
+        track.setLoopPoints(0, frames - 1, -1)
+
+        track.play()
+
+        return track
+    }
+
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+            addedDevices?.forEach {
+                Log.i(TAG, "Added devices ${audioDeviceInfoText(it)}")
+            }
+        }
+
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+            removedDevices?.forEach {
+                Log.i(TAG, "Removed device devices ${audioDeviceInfoText(it)}")
+            }
+        }
+    }
+
+    fun play() {
+        isPlaying = true
+
+        requestAudioFocus()
+
+        if (VIBRATE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(
+                    VibrationEffect.createWaveform(
+                        longArrayOf(0, 55, 20),
+                        0
+                    )
+                )
+            } else {
+                vibrator.vibrate(200)
+            }
+
+        alertTrack.stop()
+        alertTrack.setLoopPoints(0, BUFFER_FRAMES, -1)
+        alertTrack.play()
+    }
+
+    fun stop() {
+        releaseAudioFocus()
+
+        if (VIBRATE) vibrator.cancel()
+        alertTrack.pause()
+        isPlaying = false
+    }
+
+    fun toggle() {
+        if (!isPlaying) play() else stop()
+    }
+
+    private fun stuff(context: Context) {
+
         val lowLatency = context.packageManager
             .hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)
         val audioPro = context.packageManager
@@ -27,7 +199,12 @@ class Alert(private val context: Context, private val wheelData: WheelData) {
         val outputFramesPerBuffer =
             audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
 
-        val stream = AudioManager.STREAM_MUSIC
+        val deviceInfo = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        deviceInfo.forEach { info ->
+            Log.i(TAG, audioDeviceInfoText(info))
+        }
+
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
 
         Log.i(
             TAG,
@@ -36,35 +213,69 @@ class Alert(private val context: Context, private val wheelData: WheelData) {
                     "outputSampleRate: $outputSampleRate, " +
                     "outputFramesPerBuffer: $outputFramesPerBuffer"
         )
+    }
 
-        wheelData.beeper.collect {
-            when (it) {
-                true -> play()
-                false -> stop()
+    private fun getAudioBuffer(frequency: Int, len: Int, fs: Int): ShortArray {
+        val buf = ShortArray(len)
+        val twoPi = 8.0 * atan(1.0)
+        var phase = 0.0
+
+        for (i in 0 until len) {
+            buf[i] = (sin(phase) * Short.MAX_VALUE).roundToInt().toShort()
+            phase += twoPi * frequency / fs
+
+            if (i > len * 0.5 && phase < 0.2) break
+
+            if (phase > twoPi) {
+                phase -= twoPi
             }
         }
+
+        return buf
     }
 
-    private fun play() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(
-                VibrationEffect.createWaveform(
-                    longArrayOf(0, 55, 20),
-                    0
-                )
-            )
-        } else {
-            vibrator.vibrate(200)
+    private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        Log.i(TAG, "Focus change: $focusChange")
+    }
+
+    private fun audioDeviceInfoText(info: AudioDeviceInfo): String {
+        val type = when (info.type) {
+            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "TYPE_WIRED_HEADSET"
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "TYPE_BLUETOOTH_A2DP"
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "TYPE_BLUETOOTH_SCO"
+            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "TYPE_BUILTIN_EARPIECE"
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "TYPE_BUILTIN_SPEAKER"
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "TYPE_BUILTIN_SPEAKER_SAFE"
+            AudioDeviceInfo.TYPE_BUILTIN_MIC -> "TYPE_BUILTIN_MIC"
+            AudioDeviceInfo.TYPE_BUS -> "TYPE_BUS"
+            AudioDeviceInfo.TYPE_DOCK -> "TYPE_DOCK"
+            AudioDeviceInfo.TYPE_FM -> "TYPE_FM"
+            AudioDeviceInfo.TYPE_FM_TUNER -> "TYPE_FM_TUNER"
+            AudioDeviceInfo.TYPE_HDMI -> "TYPE_HDMI"
+            AudioDeviceInfo.TYPE_HDMI_ARC -> "TYPE_HDMI_ARC"
+            AudioDeviceInfo.TYPE_HEARING_AID -> "TYPE_HEARING_AID"
+            AudioDeviceInfo.TYPE_IP -> "TYPE_IP"
+            AudioDeviceInfo.TYPE_LINE_ANALOG -> "TYPE_LINE_ANALOG"
+            AudioDeviceInfo.TYPE_LINE_DIGITAL -> "TYPE_LINE_DIGITAL"
+            AudioDeviceInfo.TYPE_TELEPHONY -> "TYPE_TELEPHONY"
+            AudioDeviceInfo.TYPE_TV_TUNER -> "TYPE_TV_TUNER"
+            AudioDeviceInfo.TYPE_USB_ACCESSORY -> "TYPE_USB_ACCESSORY"
+            AudioDeviceInfo.TYPE_USB_HEADSET -> "TYPE_USB_HEADSET"
+            AudioDeviceInfo.TYPE_USB_DEVICE -> "TYPE_USB_DEVICE"
+            AudioDeviceInfo.TYPE_UNKNOWN -> "TYPE_UNKNOWN"
+            else -> "Unsupported (${info.type})"
         }
-
-    }
-
-    private fun stop() {
-        vibrator.cancel()
+        return "productName: ${info.productName}, type: $type, " +
+                "sampleRates: ${info.sampleRates.asList()}, encodings: ${info.encodings.asList()}"
     }
 
     companion object {
         private const val TAG = "Alert"
+
+        private const val BUFFER_FRAMES = 1024 * 5
+        private const val SAMPLE_RATE = 44100
+        private const val FREQUENCY = 1000
+        private const val VIBRATE = true
     }
 
 }
