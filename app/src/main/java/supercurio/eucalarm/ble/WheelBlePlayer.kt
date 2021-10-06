@@ -1,8 +1,8 @@
 package supercurio.eucalarm.ble
 
-//import com.google.protobuf.util.JsonFormat
 import android.os.SystemClock
 import android.util.Log
+//import com.google.protobuf.util.JsonFormat
 import kotlinx.coroutines.CoroutineScope
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.oems.GotwayWheel
@@ -19,9 +19,9 @@ class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) 
     fun printAsJson() {
         Log.i(TAG, "Record size: ${input.available()}")
 
-        while (input.available() > 0) {
+//        while (input.available() > 0) {
 //            Log.i(TAG, JsonFormat.printer().print(MessageType.parseDelimitedFrom(input)))
-        }
+//        }
     }
 
     suspend fun decode(wheelData: WheelData) {

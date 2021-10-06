@@ -1,10 +1,8 @@
 package supercurio.eucalarm.oems
 
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import supercurio.eucalarm.data.WheelData
-import supercurio.eucalarm.utils.showFrame
+import supercurio.eucalarm.utils.showBuffer
 import supercurio.eucalarm.utils.toHexString
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -17,6 +15,7 @@ class GotwayWheel(val wheelData: WheelData) {
     private val frame = ByteBuffer.allocate(24)
 
     fun findFrame(data: ByteArray) {
+        if (DEBUG_LOGGING) Log.i(TAG, "data:\n${data.showBuffer()}")
         ringBuffer.addAll(data.asList())
 
         val bufferList = ringBuffer.toList()
@@ -25,7 +24,7 @@ class GotwayWheel(val wheelData: WheelData) {
         if (index != -1) {
 
             if (DEBUG_LOGGING) {
-                Log.i(TAG, "BufferList: " + bufferList.map { String.format("%02x", it) })
+                Log.i(TAG, "BufferList:\n" + bufferList.toByteArray().showBuffer())
                 Log.i(TAG, "index: $index")
             }
 
@@ -34,7 +33,7 @@ class GotwayWheel(val wheelData: WheelData) {
 
             if (FRAME_LOGGING) {
                 val frameType = if (frame[18] == 0.toByte()) "A" else "B"
-                Log.i(TAG, "Frame $frameType:\n${frame.array().showFrame()}")
+                Log.i(TAG, "Frame $frameType:\n${frame.array().showBuffer()}")
             }
 
             decodeFrame(frame)

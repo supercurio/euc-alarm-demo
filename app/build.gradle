@@ -94,6 +94,7 @@ protobuf {
                 java {
                     if (use_protobuf_lite) option 'lite'
                 }
+                // generate kotlin protobuf runtime
                 kotlin {}
             }
         }

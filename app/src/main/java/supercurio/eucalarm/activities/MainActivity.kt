@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -32,7 +31,7 @@ import kotlinx.coroutines.launch
 import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelData
-import supercurio.eucalarm.feedback.Alert
+import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import java.text.DecimalFormat
 
@@ -48,7 +47,7 @@ class MainActivity : ComponentActivity() {
     private var player: WheelBlePlayer? = null
     private var simulator: WheelBleSimulator? = null
     private val wheelData = WheelData()
-    private val alert = Alert(wheelData)
+    private val alert = AlertFeedback(wheelData)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
         }
 
         findWheel = FindWheel(applicationContext)
-        wheelConnection = WheelConnection(wheelData)
+        wheelConnection = WheelConnection(wheelData, scope)
 
         scope.launch { alert.setup(applicationContext) }
     }
@@ -136,7 +135,7 @@ class MainActivity : ComponentActivity() {
                 if (!scanningState) Text("Find Wheel") else Text("Stop Wheel Scan")
             }
 
-            Button(onClick = { alert.toggle()}) { Text(text = "Alert Test") }
+            Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
             var playingState by remember { mutableStateOf(false) }
             if (!playingState)
                 Button(onClick = {
@@ -274,7 +273,10 @@ class MainActivity : ComponentActivity() {
             ?: resources.openRawResource(R.raw.sample)
         player = WheelBlePlayer(input, scope)
 
-        scope.launch { player?.decode(wheelData) }
+        scope.launch {
+            // player?.printAsJson()
+            player?.decode(wheelData)
+        }
     }
 
     private fun simulateLastRecording() {

@@ -1,6 +1,5 @@
 package supercurio.eucalarm.ble
 
-import android.bluetooth.BluetoothGattCharacteristic
 import android.content.Context
 import android.os.SystemClock
 import com.google.protobuf.ByteString
@@ -54,16 +53,16 @@ class WheelBleRecorder(
     }
 
     private fun start() = scope.launch {
-        connection.changedCharacteristic.collect { characteristic ->
-            characteristic?.let { writeNotificationData(it) }
+        connection.notifiedCharacteristic.collect { newCharacteristicValue ->
+            writeNotificationData(newCharacteristicValue)
         }
     }
 
-    private fun writeNotificationData(characteristic: BluetoothGattCharacteristic) {
+    private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) {
         gattNotification {
-            characteristicKey = characteristicsKeys[characteristic.uuid.toString()] ?: -1
+            characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid] ?: -1
             timestamp = TimeUtils.timestampSinceNanos(nanosStart)
-            bytes = ByteString.copyFrom(characteristic.value)
+            bytes = ByteString.copyFrom(notifiedCharacteristic.value)
         }.writeWireMessageTo(out)
     }
 

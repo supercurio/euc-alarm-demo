@@ -3,22 +3,25 @@ package supercurio.eucalarm.ble
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import java.util.*
 
-class WheelConnection(val wheelData: WheelData) {
+class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScope) {
 
     private var bleGatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
     private val gotwayWheel = GotwayWheel(wheelData)
     private val veteranWheel = VeteranWheel(wheelData)
 
-    private val _changedCharacteristic = MutableStateFlow<BluetoothGattCharacteristic?>(null)
-    val changedCharacteristic = _changedCharacteristic.asStateFlow()
+    private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
+    val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
 
     val bleConnectionReady = MutableStateFlow(false)
 
@@ -70,12 +73,15 @@ class WheelConnection(val wheelData: WheelData) {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            val values = characteristic.value ?: return
+            val charUUID = characteristic.toString()
+            val charValue = characteristic.value ?: return
 
-            gotwayWheel.findFrame(values)
-            veteranWheel.findFrame(values)
+            gotwayWheel.findFrame(charValue)
+            veteranWheel.findFrame(charValue)
 
-            _changedCharacteristic.value = characteristic
+            scope.launch {
+                _notifiedCharacteristic.emit(NotifiedCharacteristic(charUUID, charValue))
+            }
         }
     }
 

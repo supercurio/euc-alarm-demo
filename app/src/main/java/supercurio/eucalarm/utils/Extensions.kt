@@ -1,6 +1,6 @@
 package supercurio.eucalarm.utils
 
-//import android.util.Log
+import android.util.Log
 //import com.google.protobuf.util.JsonFormat
 import android.bluetooth.BluetoothGattCharacteristic
 import supercurio.wheeldata.recording.BleDeviceInfo
@@ -36,7 +36,7 @@ fun <K, V> Map<K, V>.reversed() = HashMap<V, K>().also { newMap ->
     entries.forEach { newMap[it.value] = it.key }
 }
 
-fun ByteArray.showFrame(): String {
+fun ByteArray.showBuffer(): String {
     val sb = StringBuilder()
     sb.append(indices.joinToString(" ") { String.format("%02d", it) })
     sb.append("\n")

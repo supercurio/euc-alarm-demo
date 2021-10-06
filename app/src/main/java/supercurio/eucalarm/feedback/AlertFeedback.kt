@@ -14,7 +14,7 @@ import kotlin.math.atan
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-class Alert(private val wheelData: WheelData) {
+class AlertFeedback(private val wheelData: WheelData) {
 
     /*
      * TODO:
@@ -111,7 +111,6 @@ class Alert(private val wheelData: WheelData) {
     }
 
     private fun setupKeepAliveTrack(): AudioTrack {
-
         val frames = 64
 
         val audioAttributes = AudioAttributes.Builder()
@@ -270,7 +269,7 @@ class Alert(private val wheelData: WheelData) {
     }
 
     companion object {
-        private const val TAG = "Alert"
+        private const val TAG = "AlertFeedback"
 
         private const val BUFFER_FRAMES = 1024 * 5
         private const val SAMPLE_RATE = 44100
