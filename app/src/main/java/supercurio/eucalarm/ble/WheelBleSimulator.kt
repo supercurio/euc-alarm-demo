@@ -25,6 +25,7 @@ class WheelBleSimulator(
     private val file: File
 ) {
 
+    private var originalBtName: String? = null
     private var input: InputStream? = null
     private val btManager = context.getSystemService<BluetoothManager>()!!
     private val characteristicsKeys = CharacteristicsKeys()
@@ -39,6 +40,7 @@ class WheelBleSimulator(
         readDeviceInfo().let { deviceInfo ->
             characteristicsKeys.fromDeviceInfo(deviceInfo)
 
+            originalBtName = btManager.adapter.name
             btManager.adapter.name = deviceInfo.name
 
             deviceInfo.gattServicesList.forEach { service ->
@@ -225,6 +227,7 @@ class WheelBleSimulator(
         server.clearServices()
         server.close()
         characteristicsKeys.clear()
+        originalBtName?.let { btManager.adapter.name = it }
     }
 
     companion object {
