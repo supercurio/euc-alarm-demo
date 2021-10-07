@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.oems.GotwayWheel
@@ -15,13 +16,19 @@ import java.util.*
 
 class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScope) {
 
+    private var shouldStayConnected = false
+
     private var bleGatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
     private val gotwayWheel = GotwayWheel(wheelData)
     private val veteranWheel = VeteranWheel(wheelData)
 
+    // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
+    private val _connectionLost = MutableStateFlow(false)
+
     val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
+    val connectionLost = _connectionLost.asStateFlow()
 
     val bleConnectionReady = MutableStateFlow(false)
 
@@ -33,10 +40,12 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
 
     fun connectDevice(context: Context, device: BluetoothDevice) {
         Log.i(TAG, "connectDevice()")
+        shouldStayConnected = true
         bleGatt = device.connectGatt(context, false, gattCallback)
     }
 
     fun disconnectDevice() {
+        shouldStayConnected = false
         notificationChar?.let {
             bleGatt?.setCharacteristicNotification(it, false)
         }
@@ -57,8 +66,13 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
                     Log.i(TAG, "STATE_DISCONNECTED")
-                    bleGatt = null
                     bleConnectionReady.value = false
+
+                    if (shouldStayConnected) {
+                        _connectionLost.value = true
+                        Log.i(TAG, "Attempt to reconnect")
+                        gatt.connect()
+                    } else bleGatt = null
                 }
             }
         }
@@ -67,6 +81,7 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
             Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
             setupGotwayType()
             bleConnectionReady.value = true
+            _connectionLost.value = false
         }
 
         override fun onCharacteristicChanged(
@@ -90,9 +105,7 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
         bleGatt?.let { gatt ->
             val service = gatt.getService(UUID.fromString(GotwayWheel.SERVICE_UUID))
             notificationChar = service.getCharacteristic(
-                UUID.fromString(
-                    GotwayWheel.DATA_CHARACTERISTIC_UUID
-                )
+                UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)
             )?.apply {
                 Log.i(TAG, "char uuid: ${this.uuid}")
                 val desc = getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))

@@ -42,12 +42,12 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var findWheel: FindWheel
     private lateinit var wheelConnection: WheelConnection
+    private lateinit var alert: AlertFeedback
 
     private var wheelBleRecorder: WheelBleRecorder? = null
     private var player: WheelBlePlayer? = null
     private var simulator: WheelBleSimulator? = null
     private val wheelData = WheelData()
-    private val alert = AlertFeedback(wheelData)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,13 +58,13 @@ class MainActivity : ComponentActivity() {
 
         findWheel = FindWheel(applicationContext)
         wheelConnection = WheelConnection(wheelData, scope)
+        alert = AlertFeedback(wheelData, wheelConnection)
 
-        scope.launch { alert.setup(applicationContext) }
+        alert.setup(applicationContext, scope)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-
 
         findWheel.stopLeScan()
         wheelConnection.disconnectDevice()

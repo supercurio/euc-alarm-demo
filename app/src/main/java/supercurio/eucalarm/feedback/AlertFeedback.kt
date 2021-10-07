@@ -8,13 +8,19 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import androidx.core.content.getSystemService
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelData
 import kotlin.math.atan
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-class AlertFeedback(private val wheelData: WheelData) {
+class AlertFeedback(
+    private val wheelData: WheelData,
+    private val wheelConnection: WheelConnection,
+) {
 
     /*
      * TODO:
@@ -30,18 +36,24 @@ class AlertFeedback(private val wheelData: WheelData) {
 
     private var isPlaying = false
 
-    suspend fun setup(context: Context) {
+    fun setup(context: Context, scope: CoroutineScope) {
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
 
         keepAliveTrack = setupKeepAliveTrack()
         alertTrack = setupAlertTrack()
 
-        wheelData.beeper.collect {
-            when (it) {
-                true -> play()
-                false -> stop()
+        scope.launch {
+            wheelData.beeper.collect {
+                when (it) {
+                    true -> play()
+                    false -> stop()
+                }
             }
+        }
+
+        scope.launch {
+            wheelConnection.connectionLost.collect { onConnectionLoss(it) }
         }
     }
 
@@ -159,14 +171,9 @@ class AlertFeedback(private val wheelData: WheelData) {
 
         if (VIBRATE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(
-                    VibrationEffect.createWaveform(
-                        longArrayOf(0, 55, 20),
-                        0
-                    )
-                )
+                vibrator.vibrate(VibrationEffect.createWaveform(alertVibrationPattern, 0))
             } else {
-                vibrator.vibrate(200)
+                vibrator.vibrate(alertVibrationPattern, 0)
             }
 
         alertTrack.stop()
@@ -184,6 +191,19 @@ class AlertFeedback(private val wheelData: WheelData) {
 
     fun toggle() {
         if (!isPlaying) play() else stop()
+    }
+
+
+    private fun onConnectionLoss(status: Boolean) {
+        if (status) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(connectionLossPattern, 0))
+            } else {
+                vibrator.vibrate(connectionLossPattern, 0)
+            }
+        } else {
+            vibrator.cancel()
+        }
     }
 
     private fun stuff(context: Context) {
@@ -275,6 +295,9 @@ class AlertFeedback(private val wheelData: WheelData) {
         private const val SAMPLE_RATE = 44100
         private const val FREQUENCY = 1000
         private const val VIBRATE = true
-    }
 
+        private val alertVibrationPattern = longArrayOf(0, 55, 20)
+        private val connectionLossPattern = longArrayOf(0, 30, 2000)
+
+    }
 }
