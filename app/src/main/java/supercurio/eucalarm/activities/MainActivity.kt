@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         }
 
         findWheel = FindWheel(applicationContext)
-        wheelConnection = WheelConnection(wheelData, scope)
+        wheelConnection = WheelConnection(wheelData)
         alert = AlertFeedback(wheelData, wheelConnection)
 
         alert.setup(applicationContext, scope)

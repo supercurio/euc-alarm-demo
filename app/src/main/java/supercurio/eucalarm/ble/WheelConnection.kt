@@ -3,7 +3,6 @@ package supercurio.eucalarm.ble
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -14,7 +13,7 @@ import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import java.util.*
 
-class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScope) {
+class WheelConnection(val wheelData: WheelData) {
 
     private var shouldStayConnected = false
 
@@ -72,7 +71,10 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
                         _connectionLost.value = true
                         Log.i(TAG, "Attempt to reconnect")
                         gatt.connect()
-                    } else bleGatt = null
+                    } else {
+                        bleGatt = null
+                        wheelData.clear()
+                    }
                 }
             }
         }

@@ -37,4 +37,13 @@ class WheelData {
      * Beeper status
      */
     val beeper = MutableStateFlow(false)
+
+
+    fun clear() {
+        listOf(voltage, speed, tripDistance, totalDistance, current, temperature).forEach {
+            it.value = null
+        }
+
+        beeper.value = false
+    }
 }

@@ -49,6 +49,8 @@ class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) 
                 }
             }
         }
+
+        wheelData.clear()
     }
 
     fun stop() {
