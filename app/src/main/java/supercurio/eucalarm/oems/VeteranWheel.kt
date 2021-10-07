@@ -1,9 +1,11 @@
 package supercurio.eucalarm.oems
 
+import android.util.Log
 import supercurio.eucalarm.data.WheelData
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
+import kotlin.math.roundToInt
 
 class VeteranWheel(val wheelData: WheelData) {
 
@@ -40,6 +42,12 @@ class VeteranWheel(val wheelData: WheelData) {
         wheelData.totalDistance.value = totalDistance
         wheelData.current.value = current
         wheelData.temperature.value = temperature
+
+        if (DATA_LOGGING) Log.i(
+            TAG, "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
+                    "totalDistance: $totalDistance, current: $current A," +
+                    "temperature: ${temperature.roundToInt()}"
+        )
     }
 
     private fun revInt(value: Int): Int {
@@ -47,5 +55,10 @@ class VeteranWheel(val wheelData: WheelData) {
         buffer.putInt(value)
         val revBuf = byteArrayOf(buffer[2], buffer[3], buffer[0], buffer[1])
         return ByteBuffer.wrap(revBuf).int
+    }
+
+    companion object {
+        private const val TAG = "VeteranWheel"
+        private const val DATA_LOGGING = true
     }
 }

@@ -130,9 +130,8 @@ class GotwayWheel(val wheelData: WheelData) {
 
         private val END_SEQUENCE = listOf<Byte>(0x18, 0x5A, 0x5A, 0x5A, 0x5A)
 
-
         private const val DEBUG_LOGGING = false
         private const val FRAME_LOGGING = false
-        private const val DATA_LOGGING = false
+        private const val DATA_LOGGING = true
     }
 }

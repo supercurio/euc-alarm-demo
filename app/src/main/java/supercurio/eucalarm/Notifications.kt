@@ -10,7 +10,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import supercurio.eucalarm.activities.MainActivity
-import kotlin.time.ExperimentalTime
 
 object Notifications {
 
@@ -46,5 +45,4 @@ object Notifications {
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
     }
-
 }

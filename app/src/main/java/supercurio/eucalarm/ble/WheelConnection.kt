@@ -19,8 +19,8 @@ class WheelConnection(val wheelData: WheelData) {
 
     private var bleGatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
-    private val gotwayWheel = GotwayWheel(wheelData)
-    private val veteranWheel = VeteranWheel(wheelData)
+    private var gotwayWheel : GotwayWheel? = null
+    private var veteranWheel : VeteranWheel? = null
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -69,12 +69,16 @@ class WheelConnection(val wheelData: WheelData) {
                     Log.i(TAG, "STATE_DISCONNECTED")
                     bleConnectionReady.value = false
 
+                    gotwayWheel = null
+                    veteranWheel = null
+
                     if (shouldStayConnected) {
                         _connectionLost.value = true
                         Log.i(TAG, "Attempt to reconnect")
                         gatt.connect()
                     } else {
                         bleGatt = null
+                        notificationChar = null
                         wheelData.clear()
                     }
                 }
@@ -84,6 +88,8 @@ class WheelConnection(val wheelData: WheelData) {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
             setupGotwayType()
+            gotwayWheel = GotwayWheel(wheelData)
+            veteranWheel = VeteranWheel(wheelData)
             bleConnectionReady.value = true
             _connectionLost.value = false
         }
@@ -96,8 +102,8 @@ class WheelConnection(val wheelData: WheelData) {
             val charUUID = characteristic.toString()
             val charValue = characteristic.value ?: return
 
-            gotwayWheel.findFrame(charValue)
-            veteranWheel.findFrame(charValue)
+            gotwayWheel?.findFrame(charValue)
+            veteranWheel?.findFrame(charValue)
 
             runBlocking {
                 _notifiedCharacteristic.emit(NotifiedCharacteristic(charUUID, charValue, id))
@@ -114,8 +120,8 @@ class WheelConnection(val wheelData: WheelData) {
                 UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)
             )?.apply {
                 Log.i(TAG, "char uuid: ${this.uuid}")
-                val desc = getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))
                 gatt.setCharacteristicNotification(this, true)
+                val desc = getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))
                 desc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 gatt.writeDescriptor(desc)
             }
