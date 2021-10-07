@@ -14,7 +14,7 @@ import kotlin.time.ExperimentalTime
 
 object Notifications {
 
-    private const val NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID = "ForegroundService"
+    private const val NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID = "AppService"
     const val ID_FOREGROUND_SERVICE = 1
 
     fun createNotificationChannels(context: Context) {

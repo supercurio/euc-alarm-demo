@@ -289,6 +289,11 @@ class AlertFeedback(
     }
 
     companion object {
+
+        private var instance: AlertFeedback? = null
+        private fun getInstance(wheelData: WheelData, wheelConnection: WheelConnection) =
+            instance ?: AlertFeedback(wheelData, wheelConnection).also { instance = null }
+
         private const val TAG = "AlertFeedback"
 
         private const val BUFFER_FRAMES = 1024 * 5

@@ -4,25 +4,32 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Binder
+import android.util.Log
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
-import kotlin.time.ExperimentalTime
 
-class ForegroundService : Service() {
+class AppService : Service() {
     override fun onBind(intent: Intent): Binder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
-        Notifications.foregroundServiceNotificationBuilder(
+        val notif = Notifications.foregroundServiceNotificationBuilder(
             applicationContext,
             getString(R.string.app_name)
         )
+
+        startForeground(NOTIF_ID, notif)
 
         return START_STICKY
     }
 
     companion object {
-        private const val TAG = "ForegroundService"
+        private const val TAG = "AppService"
+        private const val NOTIF_ID = 1
 
         private var isRunning = false
 
@@ -34,14 +41,13 @@ class ForegroundService : Service() {
             if (status) {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     context.startForegroundService(getIntent(context))
-                } else {
-                    context.startService(getIntent(context))
-                }
+                } else context.startService(getIntent(context))
             } else {
                 context.stopService(getIntent(context))
             }
         }
 
-        private fun getIntent(context: Context) = Intent(context, ForegroundService::class.java)
+        private fun getIntent(context: Context) = Intent(context, AppService::class.java)
+
     }
 }

@@ -32,6 +32,7 @@ import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.feedback.AlertFeedback
+import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import java.text.DecimalFormat
 
@@ -51,6 +52,8 @@ class MainActivity : ComponentActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppService.enable(applicationContext, true)
+
         super.onCreate(savedInstanceState)
         setContent {
             PermissionsLayout {}
@@ -65,6 +68,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
+        AppService.enable(applicationContext, false)
 
         findWheel.stopLeScan()
         wheelConnection.disconnectDevice()

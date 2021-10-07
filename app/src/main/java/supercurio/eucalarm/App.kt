@@ -8,7 +8,5 @@ class App : Application() {
         super.onCreate()
 
         Notifications.createNotificationChannels(applicationContext)
-
-//        ForegroundService.enable(context = applicationContext, true)
     }
 }

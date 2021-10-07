@@ -44,7 +44,7 @@ class WheelBleSimulator(
             btManager.adapter.name = deviceInfo.name
 
             deviceInfo.gattServicesList.forEach { service ->
-                Log.i(TAG, "Service: ${service.uuid} type: ${service.type}")
+                Log.i(TAG, "AppService: ${service.uuid} type: ${service.type}")
 
                 if (SKIP_SERVICES.contains(service.uuid)) return@forEach
 

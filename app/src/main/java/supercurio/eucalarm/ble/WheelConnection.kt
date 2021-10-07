@@ -40,7 +40,9 @@ class WheelConnection(val wheelData: WheelData) {
     fun connectDevice(context: Context, device: BluetoothDevice) {
         Log.i(TAG, "connectDevice()")
         shouldStayConnected = true
-        bleGatt = device.connectGatt(context, false, gattCallback)
+        bleGatt?.connect() ?: run {
+            bleGatt = device.connectGatt(context, false, gattCallback)
+        }
     }
 
     fun disconnectDevice() {
@@ -123,5 +125,11 @@ class WheelConnection(val wheelData: WheelData) {
     companion object {
         private const val TAG = "WheelConnection"
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
+
+        private var instance: WheelConnection? = null
+
+        fun getInstance(wheelData: WheelData) = instance ?: WheelConnection(wheelData).also {
+            instance = it
+        }
     }
 }
