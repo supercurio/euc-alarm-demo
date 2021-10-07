@@ -53,8 +53,8 @@ class WheelBleRecorder(
     }
 
     private fun start() = scope.launch {
-        connection.notifiedCharacteristic.collect { newCharacteristicValue ->
-            writeNotificationData(newCharacteristicValue)
+        connection.notifiedCharacteristic.collect { notifiedCharacteristic ->
+            writeNotificationData(notifiedCharacteristic)
         }
     }
 

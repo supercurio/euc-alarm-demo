@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
@@ -84,6 +84,7 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
             _connectionLost.value = false
         }
 
+        var id = 0L
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
@@ -94,9 +95,10 @@ class WheelConnection(val wheelData: WheelData, private val scope: CoroutineScop
             gotwayWheel.findFrame(charValue)
             veteranWheel.findFrame(charValue)
 
-            scope.launch {
-                _notifiedCharacteristic.emit(NotifiedCharacteristic(charUUID, charValue))
+            runBlocking {
+                _notifiedCharacteristic.emit(NotifiedCharacteristic(charUUID, charValue, id))
             }
+            id++
         }
     }
 
