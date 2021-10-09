@@ -73,6 +73,8 @@ class GotwayWheel(val wheelData: WheelData) {
                 wheelData.current.value = current
                 wheelData.temperature.value = temperature
 
+                wheelData.gotNewData()
+
                 if (DATA_LOGGING) Log.i(
                     TAG, "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
                             "current: $current A, temperature: ${temperature.roundToInt()}, " +
@@ -112,6 +114,8 @@ class GotwayWheel(val wheelData: WheelData) {
 
                 wheelData.totalDistance.value = totalDistance
                 wheelData.beeper.value = beeper.toInt() != 0
+
+                wheelData.gotNewData()
 
                 if (DATA_LOGGING) Log.i(
                     TAG, "total distance: $totalDistance km, pedal mode: $pedalMode, " +

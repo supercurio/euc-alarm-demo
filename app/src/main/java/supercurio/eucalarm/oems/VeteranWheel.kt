@@ -43,6 +43,8 @@ class VeteranWheel(val wheelData: WheelData) {
         wheelData.current.value = current
         wheelData.temperature.value = temperature
 
+        wheelData.gotNewData()
+
         if (DATA_LOGGING) Log.i(
             TAG, "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
                     "totalDistance: $totalDistance, current: $current A," +

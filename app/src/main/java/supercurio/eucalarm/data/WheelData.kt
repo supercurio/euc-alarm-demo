@@ -1,8 +1,17 @@
 package supercurio.eucalarm.data
 
+import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class WheelData {
+
+    /**
+     * The last time wheel data was successfully updated
+     * Useful to trigger refresh or logging on a series of data update
+     * instead of for each data point separately
+     */
+    val lastUpdate = MutableStateFlow<Long?>(null)
+
     /**
      *  Volts
      */
@@ -38,6 +47,10 @@ class WheelData {
      */
     val beeper = MutableStateFlow(false)
 
+
+    fun gotNewData() {
+        lastUpdate.value = SystemClock.elapsedRealtime()
+    }
 
     fun clear() {
         listOf(voltage, speed, tripDistance, totalDistance, current, temperature).forEach {
