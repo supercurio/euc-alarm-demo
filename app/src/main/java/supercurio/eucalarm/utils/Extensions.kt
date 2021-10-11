@@ -1,30 +1,7 @@
 package supercurio.eucalarm.utils
 
-import android.util.Log
 //import com.google.protobuf.util.JsonFormat
 import android.bluetooth.BluetoothGattCharacteristic
-import supercurio.wheeldata.recording.BleDeviceInfo
-import supercurio.wheeldata.recording.GattNotification
-import supercurio.wheeldata.recording.messageType
-import java.io.BufferedOutputStream
-
-fun Any.writeWireMessageTo(out: BufferedOutputStream) {
-
-    val message = when (val src = this) {
-        is BleDeviceInfo -> messageType { bleDeviceInfo = src }
-        is GattNotification -> messageType { gattNotification = src }
-        else -> null
-    } ?: error("Unsupported message type")
-
-    message.writeDelimitedTo(out)
-    out.flush()
-
-//    Log.i(
-//        "Message", JsonFormat.printer()
-//            .includingDefaultValueFields()
-//            .print(message)
-//    )
-}
 
 fun BluetoothGattCharacteristic.hasNotify() =
     properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0

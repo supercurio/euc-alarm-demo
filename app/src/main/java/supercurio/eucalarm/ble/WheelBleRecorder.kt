@@ -1,7 +1,6 @@
 package supercurio.eucalarm.ble
 
 import android.content.Context
-import android.os.SystemClock
 import com.google.protobuf.ByteString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -9,8 +8,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.eucalarm.utils.hasNotify
-import supercurio.eucalarm.utils.writeWireMessageTo
 import supercurio.wheeldata.recording.*
+import java.io.BufferedOutputStream
 import java.io.File
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -22,7 +21,7 @@ class WheelBleRecorder(
     private val connection: WheelConnection
 ) {
 
-    private val nanosStart = SystemClock.elapsedRealtimeNanos()
+    private val startTime by lazy { TimeUtils.timestampNow() }
     private val outFile = generateRecordingFilename(context)
     private val out = outFile.outputStream().buffered()
 
@@ -34,6 +33,8 @@ class WheelBleRecorder(
             writeDeviceInfo(
                 WheelBleDeviceInfo.fromGatt(gatt)
             )
+
+            writeRecordingInfo()
 
             // subscribe to each characteristic with notification
             gatt.services.forEach { service ->
@@ -58,13 +59,13 @@ class WheelBleRecorder(
         }
     }
 
-    private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) {
+    private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) =
         gattNotification {
             characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid] ?: -1
-            timestamp = TimeUtils.timestampSinceNanos(nanosStart)
+            elapsedTimestamp = TimeUtils.timestampSinceNanos(startTime.nano)
             bytes = ByteString.copyFrom(notifiedCharacteristic.value)
         }.writeWireMessageTo(out)
-    }
+
 
     private fun generateRecordingFilename(context: Context): File {
         val destDir = File(context.filesDir, RECORDINGS_DIR)
@@ -78,37 +79,58 @@ class WheelBleRecorder(
         return File(destDir, "$name-$strDate.protobuf")
     }
 
-    private fun writeDeviceInfo(deviceInfo: WheelBleDeviceInfo) {
-        bleDeviceInfo {
-            address = deviceInfo.address
-            name = deviceInfo.name
+    private fun writeDeviceInfo(deviceInfo: WheelBleDeviceInfo) = bleDeviceInfo {
+        address = deviceInfo.address
+        name = deviceInfo.name
 
-            var characteristicId = 0
-            gattServices += deviceInfo.services.map { service ->
-                gattService {
-                    uuid = service.uuid.toString()
-                    type = service.type
+        var characteristicId = 0
+        gattServices += deviceInfo.services.map { service ->
+            gattService {
+                uuid = service.uuid.toString()
+                type = service.type
 
-                    service.characteristics.forEach { characteristic ->
-                        val charUUID = characteristic.uuid.toString()
+                service.characteristics.forEach { characteristic ->
+                    val charUUID = characteristic.uuid.toString()
 
-                        characteristicsKeys[charUUID] = characteristicId
+                    characteristicsKeys[charUUID] = characteristicId
 
-                        gattCharacteristics[characteristicId] = gattCharacteristic {
-                            uuid = charUUID
-                            properties = characteristic.properties
+                    gattCharacteristics[characteristicId] = gattCharacteristic {
+                        uuid = charUUID
+                        properties = characteristic.properties
 
-                            gattDescriptors += characteristic.descriptors.map { descriptor ->
-                                gattDescriptor { uuid = descriptor.uuid.toString() }
-                            }
+                        gattDescriptors += characteristic.descriptors.map { descriptor ->
+                            gattDescriptor { uuid = descriptor.uuid.toString() }
                         }
-                        characteristicId++
                     }
+                    characteristicId++
                 }
             }
+        }
 
-        }.writeWireMessageTo(out)
+    }.writeWireMessageTo(out)
+
+    private fun writeRecordingInfo() = recordingInfo {
+        startTimestamp = startTime.timestamp
+    }.writeDelimitedTo(out)
+
+    private fun Any.writeWireMessageTo(out: BufferedOutputStream) {
+        val message = when (val src = this) {
+            is BleDeviceInfo -> recordingMessageType { bleDeviceInfo = src }
+            is GattNotification -> recordingMessageType { gattNotification = src }
+            is RecordingInfo -> recordingMessageType { recordingInfo = src }
+            else -> null
+        } ?: error("Unsupported message type")
+
+        message.writeDelimitedTo(out)
+        out.flush()
+
+//    Log.i(
+//        "Message", JsonFormat.printer()
+//            .includingDefaultValueFields()
+//            .print(message)
+//    )
     }
+
 
     companion object {
         private const val RECORDINGS_DIR = "recordings"

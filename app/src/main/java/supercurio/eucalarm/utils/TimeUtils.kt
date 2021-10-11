@@ -10,6 +10,7 @@ import supercurio.wheeldata.recording.GattNotification
 object TimeUtils {
 
     private const val NANOS_PER_SECOND = 1_000_000_000
+    private const val NANOS_PER_MS = 1_000_000
 
     private fun timestampFromNanos(nanoseconds: Long) = timestamp {
         seconds = nanoseconds / NANOS_PER_SECOND
@@ -22,10 +23,24 @@ object TimeUtils {
     private fun timestampToNanos(timestamp: Timestamp) =
         (timestamp.seconds * NANOS_PER_SECOND + timestamp.nanos)
 
+    fun timestampNow() = NowAndTimestamp(
+        timestamp {
+            val currentMs = System.currentTimeMillis()
+            seconds = currentMs / 1000
+            nanos = (currentMs * NANOS_PER_MS % NANOS_PER_SECOND).toInt()
+        },
+        SystemClock.elapsedRealtimeNanos()
+    )
+
     suspend fun delayFromNotification(nanoStart: Long, notification: GattNotification) {
-        val notifNanos = timestampToNanos(notification.timestamp)
+        val notifNanos = timestampToNanos(notification.elapsedTimestamp)
         val elapsed = SystemClock.elapsedRealtimeNanos() - nanoStart
         val delayMs = (notifNanos - elapsed) / 1_000_000
         if (delayMs > 0) delay(delayMs)
     }
 }
+
+data class NowAndTimestamp(
+    val timestamp: Timestamp,
+    val nano: Long,
+)

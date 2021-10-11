@@ -8,7 +8,7 @@ import supercurio.eucalarm.data.WheelData
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import supercurio.eucalarm.utils.TimeUtils
-import supercurio.wheeldata.recording.MessageType
+import supercurio.wheeldata.recording.RecordingMessageType
 import java.io.InputStream
 
 class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) {
@@ -32,7 +32,7 @@ class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) 
         playing = true
 
         while (input.available() > 0 && playing) {
-            val message = MessageType.parseDelimitedFrom(input)
+            val message = RecordingMessageType.parseDelimitedFrom(input)
 
             when {
                 message.hasBleDeviceInfo() ->

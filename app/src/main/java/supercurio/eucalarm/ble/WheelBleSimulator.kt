@@ -14,7 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.utils.TimeUtils
-import supercurio.wheeldata.recording.MessageType
+import supercurio.wheeldata.recording.RecordingMessageType
 import java.io.File
 import java.io.InputStream
 import java.util.*
@@ -79,7 +79,7 @@ class WheelBleSimulator(
         startAdvertising()
     }
 
-    private fun readDeviceInfo() = MessageType
+    private fun readDeviceInfo() = RecordingMessageType
         .parseDelimitedFrom(input)
         .bleDeviceInfo
 
@@ -125,7 +125,7 @@ class WheelBleSimulator(
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         while (input.available() > 0 && doReplay) {
-            val message = MessageType.parseDelimitedFrom(input)
+            val message = RecordingMessageType.parseDelimitedFrom(input)
 
             when {
                 message.hasGattNotification() -> {

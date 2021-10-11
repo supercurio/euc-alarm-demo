@@ -1,14 +1,16 @@
 syntax = "proto3";
 package supercurio.wheeldata.recording;
 
-option java_multiple_files = true;
-
 import "wheel-ble-info.proto";
 import "wheel-ble-data.proto";
+import "recording-info.proto";
 
-message MessageType {
+option java_multiple_files = true;
+
+message RecordingMessageType {
     oneof message {
         BleDeviceInfo ble_device_info = 1;
         GattNotification gatt_notification = 2;
+        RecordingInfo recording_info = 3;
     }
 }
