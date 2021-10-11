@@ -1,7 +1,6 @@
 package supercurio.eucalarm.oems
 
-import android.util.Log
-import supercurio.eucalarm.data.WheelData
+import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.showBuffer
 import supercurio.eucalarm.utils.toHexString
 import java.nio.ByteBuffer
@@ -9,13 +8,13 @@ import java.nio.ByteOrder
 import java.util.*
 import kotlin.math.roundToInt
 
-class GotwayWheel(val wheelData: WheelData) {
+class GotwayWheel(val wheelData: WheelDataInterface) {
 
     private val ringBuffer = ArrayDeque<Byte>(40)
     private val frame = ByteBuffer.allocate(24)
 
     fun findFrame(data: ByteArray) {
-        if (DEBUG_LOGGING) Log.i(TAG, "data:\n${data.showBuffer()}")
+        if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
         ringBuffer.addAll(data.asList())
 
         val bufferList = ringBuffer.toList()
@@ -24,8 +23,8 @@ class GotwayWheel(val wheelData: WheelData) {
         if (index != -1) {
 
             if (DEBUG_LOGGING) {
-                Log.i(TAG, "BufferList:\n" + bufferList.toByteArray().showBuffer())
-                Log.i(TAG, "index: $index")
+                println("BufferList:\n" + bufferList.toByteArray().showBuffer())
+                println("index: $index")
             }
 
             frame.clear()
@@ -33,7 +32,7 @@ class GotwayWheel(val wheelData: WheelData) {
 
             if (FRAME_LOGGING) {
                 val frameType = if (frame[18] == 0.toByte()) "A" else "B"
-                Log.i(TAG, "Frame $frameType:\n${frame.array().showBuffer()}")
+                println("Frame $frameType:\n${frame.array().showBuffer()}")
             }
 
             decodeFrame(frame)
@@ -67,16 +66,16 @@ class GotwayWheel(val wheelData: WheelData) {
                     listOf(frame.get(), frame.get(), frame.get(), frame.get())
                         .toHexString()
 
-                wheelData.voltage.value = voltage
-                wheelData.speed.value = speed
-                wheelData.tripDistance.value = distance
-                wheelData.current.value = current
-                wheelData.temperature.value = temperature
+                wheelData.voltage = voltage
+                wheelData.speed = speed
+                wheelData.tripDistance = distance
+                wheelData.current = current
+                wheelData.temperature = temperature
 
                 wheelData.gotNewData()
 
-                if (DATA_LOGGING) Log.i(
-                    TAG, "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
+                if (DATA_LOGGING) println(
+                    "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
                             "current: $current A, temperature: ${temperature.roundToInt()}, " +
                             "unknown 1: $unknown1"
                 )
@@ -112,13 +111,13 @@ class GotwayWheel(val wheelData: WheelData) {
                     frame.get(),
                 )
 
-                wheelData.totalDistance.value = totalDistance
-                wheelData.beeper.value = beeper.toInt() != 0
+                wheelData.totalDistance = totalDistance
+                wheelData.beeper = beeper.toInt() != 0
 
                 wheelData.gotNewData()
 
-                if (DATA_LOGGING) Log.i(
-                    TAG, "total distance: $totalDistance km, pedal mode: $pedalMode, " +
+                if (DATA_LOGGING) println(
+                    "total distance: $totalDistance km, pedal mode: $pedalMode, " +
                             "speed alarms: $speedAlarms, unknown 2: $unknown2, " +
                             "led mode: $ledMode, beeper: $beeper, unknown 3: $unknown3"
                 )

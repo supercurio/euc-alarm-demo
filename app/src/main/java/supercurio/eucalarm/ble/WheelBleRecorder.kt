@@ -76,7 +76,7 @@ class WheelBleRecorder(
         val strDate: String = dateFormat.format(date)
 
         val name = connection.gatt?.device?.name ?: "no-name"
-        return File(destDir, "$name-$strDate.protobuf")
+        return File(destDir, "$name-$strDate.bwr")
     }
 
     private fun writeDeviceInfo(deviceInfo: WheelBleDeviceInfo) = bleDeviceInfo {

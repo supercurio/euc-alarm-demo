@@ -38,6 +38,8 @@ object TimeUtils {
         val delayMs = (notifNanos - elapsed) / 1_000_000
         if (delayMs > 0) delay(delayMs)
     }
+
+    fun Timestamp.toMs() = seconds * 1000 + nanos / NANOS_PER_MS
 }
 
 data class NowAndTimestamp(

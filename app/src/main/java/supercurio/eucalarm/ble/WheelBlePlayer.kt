@@ -4,7 +4,7 @@ import android.os.SystemClock
 import android.util.Log
 //import com.google.protobuf.util.JsonFormat
 import kotlinx.coroutines.CoroutineScope
-import supercurio.eucalarm.data.WheelData
+import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import supercurio.eucalarm.utils.TimeUtils
@@ -24,9 +24,9 @@ class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) 
 //        }
     }
 
-    suspend fun decode(wheelData: WheelData) {
-        val gotwayWheel = GotwayWheel(wheelData)
-        val veteranWheel = VeteranWheel(wheelData)
+    suspend fun decode(wheelDataStateFlows: WheelDataStateFlows) {
+        val gotwayWheel = GotwayWheel(wheelDataStateFlows)
+        val veteranWheel = VeteranWheel(wheelDataStateFlows)
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         playing = true
@@ -50,7 +50,7 @@ class WheelBlePlayer(private val input: InputStream, val scope: CoroutineScope) 
             }
         }
 
-        wheelData.clear()
+        wheelDataStateFlows.clear()
     }
 
     fun stop() {

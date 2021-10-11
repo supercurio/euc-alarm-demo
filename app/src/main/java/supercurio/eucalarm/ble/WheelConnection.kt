@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
-import supercurio.eucalarm.data.WheelData
+import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import java.util.*
 
-class WheelConnection(val wheelData: WheelData) {
+class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
 
     private var shouldStayConnected = false
 
@@ -79,7 +79,7 @@ class WheelConnection(val wheelData: WheelData) {
                     } else {
                         bleGatt = null
                         notificationChar = null
-                        wheelData.clear()
+                        wheelDataStateFlows.clear()
                     }
                 }
             }
@@ -88,8 +88,8 @@ class WheelConnection(val wheelData: WheelData) {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
             setupGotwayType()
-            gotwayWheel = GotwayWheel(wheelData)
-            veteranWheel = VeteranWheel(wheelData)
+            gotwayWheel = GotwayWheel(wheelDataStateFlows)
+            veteranWheel = VeteranWheel(wheelDataStateFlows)
             bleConnectionReady.value = true
             _connectionLost.value = false
         }
@@ -134,7 +134,7 @@ class WheelConnection(val wheelData: WheelData) {
 
         private var instance: WheelConnection? = null
 
-        fun getInstance(wheelData: WheelData) = instance ?: WheelConnection(wheelData).also {
+        fun getInstance(wheelDataStateFlows: WheelDataStateFlows) = instance ?: WheelConnection(wheelDataStateFlows).also {
             instance = it
         }
     }

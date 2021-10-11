@@ -12,13 +12,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.ble.WheelConnection
-import supercurio.eucalarm.data.WheelData
+import supercurio.eucalarm.data.WheelDataStateFlows
 import kotlin.math.atan
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 class AlertFeedback(
-    private val wheelData: WheelData,
+    private val wheelDataStateFlows: WheelDataStateFlows,
     private val wheelConnection: WheelConnection,
 ) {
 
@@ -44,7 +44,7 @@ class AlertFeedback(
         alertTrack = setupAlertTrack()
 
         scope.launch {
-            wheelData.beeper.collect {
+            wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
                     true -> play()
                     false -> stop()
@@ -56,7 +56,6 @@ class AlertFeedback(
             wheelConnection.connectionLost.collect { onConnectionLoss(it) }
         }
     }
-
 
     private fun requestAudioFocus() =
         audioManager.requestAudioFocus(
@@ -291,8 +290,8 @@ class AlertFeedback(
     companion object {
 
         private var instance: AlertFeedback? = null
-        private fun getInstance(wheelData: WheelData, wheelConnection: WheelConnection) =
-            instance ?: AlertFeedback(wheelData, wheelConnection).also { instance = null }
+        private fun getInstance(wheelDataStateFlows: WheelDataStateFlows, wheelConnection: WheelConnection) =
+            instance ?: AlertFeedback(wheelDataStateFlows, wheelConnection).also { instance = null }
 
         private const val TAG = "AlertFeedback"
 

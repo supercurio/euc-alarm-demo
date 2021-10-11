@@ -30,7 +30,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
-import supercurio.eucalarm.data.WheelData
+import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
     private var wheelBleRecorder: WheelBleRecorder? = null
     private var player: WheelBlePlayer? = null
     private var simulator: WheelBleSimulator? = null
-    private val wheelData = WheelData()
+    private val wheelData = WheelDataStateFlows()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -194,25 +194,25 @@ class MainActivity : ComponentActivity() {
             }
 
             val df = DecimalFormat("#.###")
-            wheelData.voltage.collectAsState().value?.let {
+            wheelData.voltageFlow.collectAsState().value?.let {
                 Text("Voltage: ${df.format(it)} V ", fontSize = 30.sp)
             }
-            wheelData.speed.collectAsState().value?.let {
+            wheelData.speedFlow.collectAsState().value?.let {
                 Text("Speed: ${df.format(it)} km/h ", fontSize = 30.sp)
             }
-            wheelData.tripDistance.collectAsState().value?.let {
+            wheelData.tripDistanceFlow.collectAsState().value?.let {
                 Text("Trip Distance: $it km ", fontSize = 30.sp)
             }
-            wheelData.totalDistance.collectAsState().value?.let {
+            wheelData.totalDistanceFlow.collectAsState().value?.let {
                 Text("Total Distance: $it km ", fontSize = 30.sp)
             }
-            wheelData.current.collectAsState().value?.let {
+            wheelData.currentFlow.collectAsState().value?.let {
                 Text("Current: $it A ", fontSize = 30.sp)
             }
-            wheelData.temperature.collectAsState().value?.let {
+            wheelData.temperatureFlow.collectAsState().value?.let {
                 Text("Temperature: ${df.format(it)} °C ", fontSize = 30.sp)
             }
-            val beeper = wheelData.beeper.collectAsState().value
+            val beeper = wheelData.beeperFlow.collectAsState().value
             Column(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
