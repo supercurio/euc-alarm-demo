@@ -59,6 +59,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.3.1'
     implementation 'androidx.activity:activity-compose:1.3.1'
 
+    // Kotlin coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2'
 
     if (use_protobuf_lite) {
@@ -71,9 +72,6 @@ dependencies {
         implementation 'com.google.protobuf:protobuf-kotlin:3.18.0'
         implementation 'com.google.protobuf:protobuf-java-util:3.18.0'
     }
-
-    // Kotlin coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2'
 
     implementation "com.google.accompanist:accompanist-permissions:0.19.0"
 
