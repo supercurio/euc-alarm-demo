@@ -135,6 +135,6 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
 
         private const val DEBUG_LOGGING = false
         private const val FRAME_LOGGING = false
-        private const val DATA_LOGGING = true
+        private const val DATA_LOGGING = false
     }
 }

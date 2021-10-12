@@ -44,7 +44,7 @@ class WheelBleSimulator(
             btManager.adapter.name = deviceInfo.name
 
             deviceInfo.gattServicesList.forEach { service ->
-                Log.i(TAG, "AppService: ${service.uuid} type: ${service.type}")
+                Log.i(TAG, "Found service: ${service.uuid} type: ${service.type}")
 
                 if (SKIP_SERVICES.contains(service.uuid)) return@forEach
 
@@ -84,6 +84,7 @@ class WheelBleSimulator(
         .bleDeviceInfo
 
     private fun startAdvertising() {
+        Log.i(TAG, "Start advertising")
         val advertiseSettings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
             .setConnectable(true)
@@ -99,6 +100,7 @@ class WheelBleSimulator(
     }
 
     private fun stopAdvertising() {
+        Log.i(TAG, "Stop advertising")
         advertiser?.stopAdvertising(advertiserCallback)
     }
 
@@ -120,6 +122,7 @@ class WheelBleSimulator(
     }
 
     private suspend fun replay(device: BluetoothDevice) {
+        Log.i(TAG, "Replay")
         val input = resetInput()
         doReplay = true
         val nanoStart = SystemClock.elapsedRealtimeNanos()

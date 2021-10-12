@@ -99,7 +99,7 @@ class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            val charUUID = characteristic.toString()
+            val charUUID = characteristic.uuid.toString()
             val charValue = characteristic.value ?: return
 
             gotwayWheel?.findFrame(charValue)

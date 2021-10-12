@@ -1,6 +1,7 @@
 package supercurio.eucalarm.ble
 
 import android.content.Context
+import android.util.Log
 import com.google.protobuf.ByteString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -61,7 +62,8 @@ class WheelBleRecorder(
 
     private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) =
         gattNotification {
-            characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid] ?: -1
+            characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid]
+                ?: error("Invalid characteristic")
             elapsedTimestamp = TimeUtils.timestampSinceNanos(startTime.nano)
             bytes = ByteString.copyFrom(notifiedCharacteristic.value)
         }.writeWireMessageTo(out)
@@ -124,15 +126,16 @@ class WheelBleRecorder(
         message.writeDelimitedTo(out)
         out.flush()
 
-//    Log.i(
-//        "Message", JsonFormat.printer()
-//            .includingDefaultValueFields()
-//            .print(message)
-//    )
+//        Log.i(
+//            TAG, JsonFormat.printer()
+//                .includingDefaultValueFields()
+//                .print(message)
+//        )
     }
 
 
     companion object {
+        private const val TAG = "WheelBleRecorder"
         private const val RECORDINGS_DIR = "recordings"
 
         fun getLastRecordingFile(context: Context): File? {
