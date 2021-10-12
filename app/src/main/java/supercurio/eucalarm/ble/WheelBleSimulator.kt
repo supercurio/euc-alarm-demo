@@ -10,8 +10,7 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.getSystemService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
@@ -19,23 +18,25 @@ import java.io.File
 import java.io.InputStream
 import java.util.*
 
-class WheelBleSimulator(
-    private val context: Context,
-    private val scope: CoroutineScope,
-    private val file: File
-) {
+class WheelBleSimulator(context: Context) {
 
-    private var originalBtName: String? = null
-    private var input: InputStream? = null
+    private val scope = MainScope() + CoroutineName(TAG)
     private val btManager = context.getSystemService<BluetoothManager>()!!
     private val characteristicsKeys = CharacteristicsKeys()
+
     private lateinit var server: SuspendingGattServer
+    private lateinit var file: File
+    private lateinit var input: InputStream
+
+    private var originalBtName: String? = null
     private var advertiser: BluetoothLeAdvertiser? = null
     private var connectedDevice: BluetoothDevice? = null
     private var doReplay = false
 
-    suspend fun start() {
-        input = resetInput()
+    suspend fun start(context: Context, inputFile: File) {
+        file = inputFile
+
+        resetInput()
         server = SuspendingGattServer(context, gattServerCallback)
         readDeviceInfo().let { deviceInfo ->
             characteristicsKeys.fromDeviceInfo(deviceInfo)
@@ -123,7 +124,7 @@ class WheelBleSimulator(
 
     private suspend fun replay(device: BluetoothDevice) {
         Log.i(TAG, "Replay")
-        val input = resetInput()
+        resetInput()
         doReplay = true
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
@@ -148,10 +149,9 @@ class WheelBleSimulator(
         }
     }
 
-    private fun resetInput(): InputStream {
+    private fun resetInput() {
         val input = file.inputStream().buffered()
         this.input = input
-        return input
     }
 
     private fun stopReplay() {
@@ -225,12 +225,16 @@ class WheelBleSimulator(
 
     fun stop() {
         stopReplay()
-        input?.close()
+        input.close()
         stopAdvertising()
         server.clearServices()
         server.close()
         characteristicsKeys.clear()
         originalBtName?.let { btManager.adapter.name = it }
+    }
+
+    fun shutdown() {
+        instance = null
     }
 
     companion object {
@@ -239,5 +243,8 @@ class WheelBleSimulator(
             "00001800-0000-1000-8000-00805f9b34fb",
             "00001801-0000-1000-8000-00805f9b34fb",
         )
+
+        private var instance: WheelBleSimulator? = null
+        fun getInstance(context: Context) = WheelBleSimulator(context).also { instance = it }
     }
 }

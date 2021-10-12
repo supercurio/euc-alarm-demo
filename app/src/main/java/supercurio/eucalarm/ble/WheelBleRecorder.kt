@@ -1,12 +1,10 @@
 package supercurio.eucalarm.ble
 
 import android.content.Context
-import android.util.Log
 import com.google.protobuf.ByteString
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
+import supercurio.eucalarm.utils.NowAndTimestamp
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.eucalarm.utils.hasNotify
 import supercurio.wheeldata.recording.*
@@ -16,17 +14,13 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-class WheelBleRecorder(
-    context: Context,
-    private val scope: CoroutineScope,
-    private val connection: WheelConnection
-) {
+class WheelBleRecorder(private val connection: WheelConnection) {
 
-    private val startTime by lazy { TimeUtils.timestampNow() }
-    private val outFile = generateRecordingFilename(context)
-    private val out = outFile.outputStream().buffered()
-
-    private val characteristicsKeys = CharacteristicsKeys()
+    private var startTime: NowAndTimestamp? = null
+    private var outFile: File? = null
+    private var out: BufferedOutputStream? = null
+    private var scope: CoroutineScope? = null
+    private var characteristicsKeys: CharacteristicsKeys? = null
 
     init {
         connection.gatt?.let { gatt ->
@@ -45,28 +39,47 @@ class WheelBleRecorder(
                 }
             }
         }
-        start()
     }
 
-    fun stop() {
-        out.flush()
-        out.close()
-        scope.cancel()
-    }
+    fun start(context: Context) {
+        val scope = (MainScope() + CoroutineName(TAG)).also { scope = it }
+        scope.launch {
+            characteristicsKeys = CharacteristicsKeys()
+            startTime = TimeUtils.timestampNow()
+            outFile = generateRecordingFilename(context)
+            out = outFile?.outputStream()?.buffered()
 
-    private fun start() = scope.launch {
-        connection.notifiedCharacteristic.collect { notifiedCharacteristic ->
-            writeNotificationData(notifiedCharacteristic)
+            connection.notifiedCharacteristic.collect { notifiedCharacteristic ->
+                writeNotificationData(notifiedCharacteristic)
+            }
         }
     }
 
+    fun stop() {
+        out?.flush()
+        out?.close()
+        characteristicsKeys = null
+    }
+
+    fun shutDown() {
+        stop()
+        startTime = null
+        outFile = null
+        out = null
+        scope?.cancel()
+        scope = null
+        // always re-use the same instance after clearing it
+    }
+
     private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) =
-        gattNotification {
-            characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid]
-                ?: error("Invalid characteristic")
-            elapsedTimestamp = TimeUtils.timestampSinceNanos(startTime.nano)
-            bytes = ByteString.copyFrom(notifiedCharacteristic.value)
-        }.writeWireMessageTo(out)
+        characteristicsKeys?.let { characteristicsKeys ->
+            gattNotification {
+                characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid]
+                    ?: error("Invalid characteristic")
+                startTime?.nano?.let { elapsedTimestamp = TimeUtils.timestampSinceNanos(it) }
+                bytes = ByteString.copyFrom(notifiedCharacteristic.value)
+            }.writeWireMessageTo(out)
+        }
 
 
     private fun generateRecordingFilename(context: Context): File {
@@ -82,6 +95,8 @@ class WheelBleRecorder(
     }
 
     private fun writeDeviceInfo(deviceInfo: WheelBleDeviceInfo) = bleDeviceInfo {
+        val characteristicsKeys = characteristicsKeys ?: return
+
         address = deviceInfo.address
         name = deviceInfo.name
 
@@ -112,10 +127,11 @@ class WheelBleRecorder(
     }.writeWireMessageTo(out)
 
     private fun writeRecordingInfo() = recordingInfo {
-        startTimestamp = startTime.timestamp
+        startTime?.let { startTimestamp = it.timestamp }
     }.writeDelimitedTo(out)
 
-    private fun Any.writeWireMessageTo(out: BufferedOutputStream) {
+    private fun Any.writeWireMessageTo(out: BufferedOutputStream?) {
+        if (out == null) return
         val message = when (val src = this) {
             is BleDeviceInfo -> recordingMessageType { bleDeviceInfo = src }
             is GattNotification -> recordingMessageType { gattNotification = src }
@@ -143,5 +159,9 @@ class WheelBleRecorder(
             filesList?.sortByDescending { it.lastModified() }
             return filesList?.first()
         }
+
+        private var instance: WheelBleRecorder? = null
+        fun getInstance(connection: WheelConnection) =
+            instance ?: WheelBleRecorder(connection).also { instance = it }
     }
 }

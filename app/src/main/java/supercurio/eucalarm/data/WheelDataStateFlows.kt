@@ -73,4 +73,9 @@ class WheelDataStateFlows : WheelDataInterface {
     else
         _lastUpdateNanos.value = System.nanoTime()
 
+    companion object {
+        private var instance: WheelDataStateFlows? = null
+        fun getInstance() = instance ?: WheelDataStateFlows().also { instance = it }
+    }
+
 }

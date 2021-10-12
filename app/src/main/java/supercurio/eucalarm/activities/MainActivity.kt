@@ -25,9 +25,7 @@ import androidx.core.content.FileProvider
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelDataStateFlows
@@ -39,17 +37,17 @@ import java.text.DecimalFormat
 
 class MainActivity : ComponentActivity() {
 
-    private val scope = MainScope()
+    private val scope = MainScope() + CoroutineName(TAG)
+
+    private val wheelData = WheelDataStateFlows.getInstance()
+    private val wheelConnection = WheelConnection.getInstance(wheelData)
+    private val alert = AlertFeedback.getInstance(wheelData, wheelConnection)
+    private val wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
 
     private lateinit var findWheel: FindWheel
-    private lateinit var wheelConnection: WheelConnection
-    private lateinit var alert: AlertFeedback
 
-    private var wheelBleRecorder: WheelBleRecorder? = null
     private var player: WheelBlePlayer? = null
     private var simulator: WheelBleSimulator? = null
-    private val wheelData = WheelDataStateFlows()
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppService.enable(applicationContext, true)
@@ -60,10 +58,6 @@ class MainActivity : ComponentActivity() {
         }
 
         findWheel = FindWheel(applicationContext)
-        wheelConnection = WheelConnection(wheelData)
-        alert = AlertFeedback(wheelData, wheelConnection)
-
-        alert.setup(applicationContext, scope)
     }
 
     override fun onDestroy() {
@@ -72,7 +66,6 @@ class MainActivity : ComponentActivity() {
         AppService.enable(applicationContext, false)
 
         findWheel.stopLeScan()
-        wheelConnection.disconnectDevice()
         scope.cancel()
     }
 
@@ -244,12 +237,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun record() {
-        wheelBleRecorder = WheelBleRecorder(applicationContext, scope, wheelConnection)
+        wheelBleRecorder.start(applicationContext)
     }
 
     private fun stopRecording() {
-        wheelBleRecorder?.stop()
-        wheelBleRecorder = null
+        wheelBleRecorder.shutDown()
         shareRecording()
     }
 
@@ -276,7 +268,7 @@ class MainActivity : ComponentActivity() {
     private fun playLastRecording() {
         val input = WheelBleRecorder.getLastRecordingFile(applicationContext)?.inputStream()
             ?: resources.openRawResource(R.raw.sample)
-        player = WheelBlePlayer(input, scope)
+        player = WheelBlePlayer(input)
 
         scope.launch {
             // player?.printAsJson()
@@ -286,9 +278,9 @@ class MainActivity : ComponentActivity() {
 
     private fun simulateLastRecording() {
         val lastRecordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
-        simulator = WheelBleSimulator(applicationContext, scope, lastRecordingFile)
+        simulator = WheelBleSimulator(applicationContext)
 
-        scope.launch { simulator?.start() }
+        scope.launch { simulator?.start(applicationContext, lastRecordingFile) }
     }
 
 

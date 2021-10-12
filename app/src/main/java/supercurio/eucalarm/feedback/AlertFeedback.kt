@@ -34,9 +34,11 @@ class AlertFeedback(
     private lateinit var alertTrack: AudioTrack
     private lateinit var keepAliveTrack: AudioTrack
 
+    private var setupComplete = false
     private var isPlaying = false
 
     fun setup(context: Context, scope: CoroutineScope) {
+        Log.i(TAG, "Setup instance $instance")
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
 
@@ -55,6 +57,7 @@ class AlertFeedback(
         scope.launch {
             wheelConnection.connectionLost.collect { onConnectionLoss(it) }
         }
+        setupComplete = true
     }
 
     private fun requestAudioFocus() =
@@ -164,6 +167,7 @@ class AlertFeedback(
     }
 
     fun play() {
+        if (!setupComplete) return
         isPlaying = true
 
         requestAudioFocus()
@@ -181,6 +185,7 @@ class AlertFeedback(
     }
 
     fun stop() {
+        if (!setupComplete) return
         releaseAudioFocus()
 
         if (VIBRATE) vibrator.cancel()
@@ -189,6 +194,7 @@ class AlertFeedback(
     }
 
     fun toggle() {
+        if (!setupComplete) return
         if (!isPlaying) play() else stop()
     }
 
@@ -288,11 +294,6 @@ class AlertFeedback(
     }
 
     companion object {
-
-        private var instance: AlertFeedback? = null
-        private fun getInstance(wheelDataStateFlows: WheelDataStateFlows, wheelConnection: WheelConnection) =
-            instance ?: AlertFeedback(wheelDataStateFlows, wheelConnection).also { instance = null }
-
         private const val TAG = "AlertFeedback"
 
         private const val BUFFER_FRAMES = 1024 * 5
@@ -303,5 +304,10 @@ class AlertFeedback(
         private val alertVibrationPattern = longArrayOf(0, 55, 20)
         private val connectionLossPattern = longArrayOf(0, 30, 2000)
 
+        private var instance: AlertFeedback? = null
+        fun getInstance(
+            wheelDataStateFlows: WheelDataStateFlows,
+            wheelConnection: WheelConnection
+        ) = instance ?: AlertFeedback(wheelDataStateFlows, wheelConnection).also { instance = it }
     }
 }

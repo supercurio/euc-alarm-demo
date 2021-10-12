@@ -4,14 +4,35 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Binder
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.plus
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
+import supercurio.eucalarm.ble.WheelBleRecorder
+import supercurio.eucalarm.ble.WheelBleSimulator
+import supercurio.eucalarm.ble.WheelConnection
+import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.feedback.AlertFeedback
 
 class AppService : Service() {
+    private val scope = MainScope() + CoroutineName(TAG)
+
     override fun onBind(intent: Intent): Binder? = null
+
+    private val wheelData = WheelDataStateFlows()
+    private val wheelConnection = WheelConnection.getInstance(wheelData)
+    private val alert = AlertFeedback.getInstance(wheelData, wheelConnection)
+
+    private val wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+    private lateinit var simulator: WheelBleSimulator
 
     override fun onCreate() {
         super.onCreate()
+
+        alert.setup(applicationContext, scope)
+        simulator = WheelBleSimulator.getInstance(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -24,6 +45,13 @@ class AppService : Service() {
         startForeground(NOTIF_ID, notif)
 
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        wheelBleRecorder.shutDown()
+        wheelConnection.shutdown()
+        simulator.shutdown()
+        scope.cancel()
     }
 
     companion object {

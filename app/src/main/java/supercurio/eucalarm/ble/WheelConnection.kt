@@ -8,19 +8,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
-import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import java.util.*
 
-class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
+class WheelConnection(val wheelData: WheelDataInterface) {
 
     private var shouldStayConnected = false
 
     private var bleGatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
-    private var gotwayWheel : GotwayWheel? = null
-    private var veteranWheel : VeteranWheel? = null
+    private var gotwayWheel: GotwayWheel? = null
+    private var veteranWheel: VeteranWheel? = null
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -55,6 +55,11 @@ class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
 
     fun isConnected() = bleGatt != null
 
+    fun shutdown() {
+        disconnectDevice()
+        instance = null
+    }
+
     private val gattCallback = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -79,7 +84,7 @@ class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
                     } else {
                         bleGatt = null
                         notificationChar = null
-                        wheelDataStateFlows.clear()
+                        wheelData.clear()
                     }
                 }
             }
@@ -88,8 +93,8 @@ class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
             setupGotwayType()
-            gotwayWheel = GotwayWheel(wheelDataStateFlows)
-            veteranWheel = VeteranWheel(wheelDataStateFlows)
+            gotwayWheel = GotwayWheel(wheelData)
+            veteranWheel = VeteranWheel(wheelData)
             bleConnectionReady.value = true
             _connectionLost.value = false
         }
@@ -134,8 +139,7 @@ class WheelConnection(val wheelDataStateFlows: WheelDataStateFlows) {
 
         private var instance: WheelConnection? = null
 
-        fun getInstance(wheelDataStateFlows: WheelDataStateFlows) = instance ?: WheelConnection(wheelDataStateFlows).also {
-            instance = it
-        }
+        fun getInstance(wheelData: WheelDataInterface) =
+            instance ?: WheelConnection(wheelData).also { instance = it }
     }
 }
