@@ -11,6 +11,8 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
     private val ringBuffer = ArrayDeque<Byte>(40)
     private val frame = ByteBuffer.allocate(36)
 
+
+    // TODO: Improve the robustness of this routine with packet loss
     fun findFrame(data: ByteArray) {
         ringBuffer.addAll(data.asList())
 

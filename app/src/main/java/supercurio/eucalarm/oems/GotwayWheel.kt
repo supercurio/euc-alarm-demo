@@ -10,11 +10,17 @@ import kotlin.math.roundToInt
 
 class GotwayWheel(val wheelData: WheelDataInterface) {
 
-    private val ringBuffer = ArrayDeque<Byte>(40)
+    private val ringBuffer = ArrayDeque<Byte>(MAX_RING_BUFFER_SIZE)
     private val frame = ByteBuffer.allocate(24)
+
 
     fun findFrame(data: ByteArray) {
         if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
+
+        // cap the size of the ring buffer to its maximum
+        val toRemove = ringBuffer.size + data.size - MAX_RING_BUFFER_SIZE
+        if (toRemove > 0) (0 until toRemove).forEach { _ -> ringBuffer.remove() }
+
         ringBuffer.addAll(data.asList())
 
         val bufferList = ringBuffer.toList()
@@ -42,7 +48,6 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
             ringBuffer.addAll(next)
         }
     }
-
 
     private fun decodeFrame(frame: ByteBuffer) {
         frame.order(ByteOrder.BIG_ENDIAN)
@@ -131,6 +136,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
         const val SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb"
         const val DATA_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
+        private val MAX_RING_BUFFER_SIZE = 40
         private val END_SEQUENCE = listOf<Byte>(0x18, 0x5A, 0x5A, 0x5A, 0x5A)
 
         private const val DEBUG_LOGGING = false
