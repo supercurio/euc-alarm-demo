@@ -53,9 +53,7 @@ class WheelConnection(
     fun disconnectDevice() {
         shouldStayConnected = false
         powerManagement.removeLock(TAG)
-        notificationChar?.let {
-            bleGatt?.setCharacteristicNotification(it, false)
-        }
+        notificationChar?.apply { gatt?.let { setNotification(it, false) } }
         bleGatt?.disconnect()
     }
 
@@ -129,12 +127,20 @@ class WheelConnection(
                 UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)
             )?.apply {
                 Log.i(TAG, "char uuid: ${this.uuid}")
-                gatt.setCharacteristicNotification(this, true)
-                val desc = getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))
-                desc.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                gatt.writeDescriptor(desc)
+                setNotification(gatt, true)
             }
         }
+    }
+
+    private fun BluetoothGattCharacteristic.setNotification(gatt: BluetoothGatt, status: Boolean) {
+        gatt.setCharacteristicNotification(this, status)
+
+        val desc = getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))
+        desc.value = if (status)
+            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        else
+            BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+        gatt.writeDescriptor(desc)
     }
 
     companion object {
