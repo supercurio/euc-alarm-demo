@@ -60,6 +60,53 @@ class AlertFeedback(
         setupComplete = true
     }
 
+    fun play() {
+        if (!setupComplete) return
+        isPlaying = true
+
+        requestAudioFocus()
+
+        if (VIBRATE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(alertVibrationPattern, 0))
+            } else {
+                vibrator.vibrate(alertVibrationPattern, 0)
+            }
+
+        alertTrack.stop()
+        alertTrack.setLoopPoints(0, BUFFER_FRAMES, -1)
+        alertTrack.play()
+    }
+
+    fun stop() {
+        if (!setupComplete) return
+        releaseAudioFocus()
+
+        if (VIBRATE) vibrator.cancel()
+        alertTrack.pause()
+        isPlaying = false
+    }
+
+    fun toggle() {
+        if (!setupComplete) return
+        if (!isPlaying) play() else stop()
+    }
+
+    fun shutdown() {
+        keepAliveTrack.pause()
+        alertTrack.pause()
+
+        alertTrack.flush()
+        keepAliveTrack.flush()
+
+        alertTrack.stop()
+        keepAliveTrack.stop()
+    }
+
+    /**
+     * private methods
+     */
+
     private fun requestAudioFocus() =
         audioManager.requestAudioFocus(
             afChangeListener,
@@ -164,38 +211,6 @@ class AlertFeedback(
                 Log.i(TAG, "Removed device devices ${audioDeviceInfoText(it)}")
             }
         }
-    }
-
-    fun play() {
-        if (!setupComplete) return
-        isPlaying = true
-
-        requestAudioFocus()
-
-        if (VIBRATE)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(alertVibrationPattern, 0))
-            } else {
-                vibrator.vibrate(alertVibrationPattern, 0)
-            }
-
-        alertTrack.stop()
-        alertTrack.setLoopPoints(0, BUFFER_FRAMES, -1)
-        alertTrack.play()
-    }
-
-    fun stop() {
-        if (!setupComplete) return
-        releaseAudioFocus()
-
-        if (VIBRATE) vibrator.cancel()
-        alertTrack.pause()
-        isPlaying = false
-    }
-
-    fun toggle() {
-        if (!setupComplete) return
-        if (!isPlaying) play() else stop()
     }
 
 

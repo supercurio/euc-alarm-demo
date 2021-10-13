@@ -21,6 +21,11 @@ class FindWheel(private val context: Context) {
     }
 
 
+    fun stopLeScan() {
+        bluetoothLeScanner?.stopScan(leScanCallback)
+        isScanning.value = false
+    }
+
     /**
      * BLE Scanner
      */
@@ -42,11 +47,6 @@ class FindWheel(private val context: Context) {
 
         bluetoothLeScanner?.startScan(listOf(scanFilter), scanSettings, leScanCallback)
         isScanning.value = true
-    }
-
-    fun stopLeScan() {
-        bluetoothLeScanner?.stopScan(leScanCallback)
-        isScanning.value = false
     }
 
     private val leScanCallback = object : ScanCallback() {

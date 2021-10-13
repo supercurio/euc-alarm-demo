@@ -51,6 +51,7 @@ class AppService : Service() {
         wheelBleRecorder.shutDown()
         wheelConnection.shutdown()
         simulator.shutdown()
+        alert.shutdown()
         scope.cancel()
     }
 
