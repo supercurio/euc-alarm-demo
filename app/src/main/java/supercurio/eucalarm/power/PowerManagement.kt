@@ -13,9 +13,12 @@ class PowerManagement(context: Context) {
 
     @SuppressLint("WakelockTimeout")
     fun addLock(tag: String) {
+        // skip creating a wakelock already existing
+        if (activeWakelocks.contains(tag)) return
+
         val wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, tag)
+        wakeLock.setReferenceCounted(false)
         wakeLock.acquire()
-        activeWakelocks[tag] = wakeLock
     }
 
     fun removeLock(tag: String) {

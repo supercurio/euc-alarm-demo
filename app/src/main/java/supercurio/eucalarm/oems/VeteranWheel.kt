@@ -1,19 +1,28 @@
 package supercurio.eucalarm.oems
 
 import supercurio.eucalarm.data.WheelDataInterface
+import supercurio.eucalarm.utils.DataParsing.capSize
+import supercurio.eucalarm.utils.showBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
-import kotlin.math.roundToInt
 
 class VeteranWheel(val wheelData: WheelDataInterface) {
 
-    private val ringBuffer = ArrayDeque<Byte>(40)
-    private val frame = ByteBuffer.allocate(36)
+    private val ringBuffer = ArrayDeque<Byte>(FRAME_SIZE)
+    private val frame = ByteBuffer.allocate(FRAME_SIZE)
 
 
     // TODO: Improve the robustness of this routine with packet loss
     fun findFrame(data: ByteArray) {
+        if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
+
+        // handle the case if the 2nd packet was received first
+        if (data.size == 20 && ringBuffer.size > 0)
+            ringBuffer.clear()
+
+        ringBuffer.capSize(FRAME_SIZE, data)
+
         ringBuffer.addAll(data.asList())
 
         if (ringBuffer.size == frame.array().size) {
@@ -62,6 +71,10 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
 
     companion object {
         private const val TAG = "VeteranWheel"
-        private const val DATA_LOGGING = false
+
+        private const val FRAME_SIZE = 36
+
+        private const val DEBUG_LOGGING = false
+        private const val DATA_LOGGING = true
     }
 }

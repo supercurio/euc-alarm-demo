@@ -1,6 +1,7 @@
 package supercurio.eucalarm.oems
 
 import supercurio.eucalarm.data.WheelDataInterface
+import supercurio.eucalarm.utils.DataParsing.capSize
 import supercurio.eucalarm.utils.showBuffer
 import supercurio.eucalarm.utils.toHexString
 import java.nio.ByteBuffer
@@ -17,9 +18,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
     fun findFrame(data: ByteArray) {
         if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
 
-        // cap the size of the ring buffer to its maximum
-        val toRemove = ringBuffer.size + data.size - MAX_RING_BUFFER_SIZE
-        if (toRemove > 0) (0 until toRemove).forEach { _ -> ringBuffer.remove() }
+        ringBuffer.capSize(MAX_RING_BUFFER_SIZE, data)
 
         ringBuffer.addAll(data.asList())
 
@@ -136,7 +135,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
         const val SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb"
         const val DATA_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
-        private val MAX_RING_BUFFER_SIZE = 40
+        private const val MAX_RING_BUFFER_SIZE = 40
         private val END_SEQUENCE = listOf<Byte>(0x18, 0x5A, 0x5A, 0x5A, 0x5A)
 
         private const val DEBUG_LOGGING = false

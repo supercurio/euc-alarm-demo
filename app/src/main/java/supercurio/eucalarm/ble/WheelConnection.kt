@@ -59,8 +59,6 @@ class WheelConnection(
         bleGatt?.disconnect()
     }
 
-    fun isConnected() = bleGatt != null
-
     fun shutdown() {
         disconnectDevice()
         instance = null
@@ -98,9 +96,9 @@ class WheelConnection(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
-            setupGotwayType()
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
+            setupGotwayType()
             bleConnectionReady.value = true
             _connectionLost.value = false
         }
