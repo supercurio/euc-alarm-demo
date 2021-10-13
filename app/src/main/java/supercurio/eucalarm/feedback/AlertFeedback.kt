@@ -93,14 +93,17 @@ class AlertFeedback(
     }
 
     fun shutdown() {
+        stop()
         keepAliveTrack.pause()
-        alertTrack.pause()
 
         alertTrack.flush()
         keepAliveTrack.flush()
 
         alertTrack.stop()
         keepAliveTrack.stop()
+
+        alertTrack.release()
+        keepAliveTrack.release()
     }
 
     /**
