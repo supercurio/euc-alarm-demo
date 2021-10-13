@@ -12,34 +12,39 @@ import android.util.Log
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
 import supercurio.eucalarm.oems.GotwayWheel
+import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
 import java.io.File
 import java.io.InputStream
 import java.util.*
 
-class WheelBleSimulator(context: Context) {
+class WheelBleSimulator(context: Context, private val powerManagement: PowerManagement) {
 
     private val scope = MainScope() + CoroutineName(TAG)
-    private val btManager = context.getSystemService<BluetoothManager>()!!
-    private val characteristicsKeys = CharacteristicsKeys()
+    private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
     private lateinit var server: SuspendingGattServer
     private lateinit var file: File
     private lateinit var input: InputStream
 
+    private var characteristicsKeys: CharacteristicsKeys? = null
     private var originalBtName: String? = null
     private var advertiser: BluetoothLeAdvertiser? = null
     private var connectedDevice: BluetoothDevice? = null
     private var doReplay = false
 
     suspend fun start(context: Context, inputFile: File) {
+        powerManagement.addLock(TAG)
+
+        characteristicsKeys = CharacteristicsKeys()
+
         file = inputFile
 
         resetInput()
         server = SuspendingGattServer(context, gattServerCallback)
         readDeviceInfo().let { deviceInfo ->
-            characteristicsKeys.fromDeviceInfo(deviceInfo)
+            characteristicsKeys?.fromDeviceInfo(deviceInfo)
 
             originalBtName = btManager.adapter.name
             btManager.adapter.name = deviceInfo.name
@@ -123,6 +128,7 @@ class WheelBleSimulator(context: Context) {
     }
 
     private suspend fun replay(device: BluetoothDevice) {
+        val characteristicsKeys = characteristicsKeys ?: return
         Log.i(TAG, "Replay")
         resetInput()
         doReplay = true
@@ -229,8 +235,9 @@ class WheelBleSimulator(context: Context) {
         stopAdvertising()
         server.clearServices()
         server.close()
-        characteristicsKeys.clear()
+        characteristicsKeys = null
         originalBtName?.let { btManager.adapter.name = it }
+        powerManagement.removeLock(TAG)
     }
 
     fun shutdown() {
@@ -245,6 +252,7 @@ class WheelBleSimulator(context: Context) {
         )
 
         private var instance: WheelBleSimulator? = null
-        fun getInstance(context: Context) = WheelBleSimulator(context).also { instance = it }
+        fun getInstance(context: Context, powerManagement: PowerManagement) =
+            WheelBleSimulator(context, powerManagement).also { instance = it }
     }
 }

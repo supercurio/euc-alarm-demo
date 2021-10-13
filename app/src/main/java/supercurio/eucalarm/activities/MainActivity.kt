@@ -30,6 +30,7 @@ import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
+import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import java.text.DecimalFormat
@@ -40,17 +41,24 @@ class MainActivity : ComponentActivity() {
     private val scope = MainScope() + CoroutineName(TAG)
 
     private val wheelData = WheelDataStateFlows.getInstance()
-    private val wheelConnection = WheelConnection.getInstance(wheelData)
-    private val alert = AlertFeedback.getInstance(wheelData, wheelConnection)
-    private val wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+    private lateinit var powerManagement: PowerManagement
+    private lateinit var wheelConnection: WheelConnection
+    private lateinit var alert: AlertFeedback
+    private lateinit var wheelBleRecorder: WheelBleRecorder
+    private lateinit var simulator: WheelBleSimulator
 
     private lateinit var findWheel: FindWheel
 
     private var player: WheelBlePlayer? = null
-    private var simulator: WheelBleSimulator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppService.enable(applicationContext, true)
+
+        powerManagement = PowerManagement.getInstance(applicationContext)
+        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement)
+        alert = AlertFeedback.getInstance(wheelData, wheelConnection)
+        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+        simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
 
         super.onCreate(savedInstanceState)
         setContent {
@@ -126,11 +134,12 @@ class MainActivity : ComponentActivity() {
 
         Column(modifier = Modifier.padding(16.dp)) {
             val scanningState by findWheel.isScanning.collectAsState()
-            Button(onClick = {
-                if (!scanningState) findWheel.find() else findWheel.stopLeScan()
-            }) {
-                if (!scanningState) Text("Find Wheel") else Text("Stop Wheel Scan")
-            }
+            if (!scanningState)
+                Button(onClick = { findWheel.find() }) { Text("Find Wheel") }
+            else
+                Button(onClick = { findWheel.stopLeScan() }) { Text("Stop Wheel Scan") }
+
+            Button(onClick = { manualStop() }) { Text("Stop app") }
 
             Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
             var playingState by remember { mutableStateOf(false) }
@@ -166,21 +175,18 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            if (wheelConnection.bleConnectionReady) {
+            val bleConnectionReady by wheelConnection.bleConnectionReady.collectAsState()
+            if (bleConnectionReady) {
                 if (wheelConnection.isConnected()) Button(onClick = {
                     wheelConnection.disconnectDevice()
                 }) { Text("Disconnect from ${wheelConnection.device?.name}") }
 
-                val recordingState = wheelBleRecorder.isRecording
-                if (!recordingState) {
-                    Button(onClick = {
-                        record()
-                    }) { Text("Record") }
-                } else {
-                    Button(onClick = {
-                        stopRecording()
-                    }) { Text("Stop recording") }
-                }
+                val recordingState by wheelBleRecorder.isRecording.collectAsState()
+                if (!recordingState)
+                    Button(onClick = { record() }) { Text("Record") }
+                else
+                    Button(onClick = { stopRecording() }) { Text("Stop recording") }
+
             }
 
             val df = DecimalFormat("#.###")
@@ -275,9 +281,13 @@ class MainActivity : ComponentActivity() {
 
     private fun simulateLastRecording() {
         val lastRecordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
-        simulator = WheelBleSimulator(applicationContext)
 
         scope.launch { simulator?.start(applicationContext, lastRecordingFile) }
+    }
+
+    private fun manualStop() {
+        AppService.enable(applicationContext, false)
+        finish()
     }
 
 

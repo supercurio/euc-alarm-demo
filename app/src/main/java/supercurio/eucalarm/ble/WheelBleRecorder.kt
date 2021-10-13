@@ -3,6 +3,7 @@ package supercurio.eucalarm.ble
 import android.content.Context
 import com.google.protobuf.ByteString
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import supercurio.eucalarm.utils.NowAndTimestamp
 import supercurio.eucalarm.utils.TimeUtils
@@ -16,15 +17,15 @@ import java.util.*
 
 class WheelBleRecorder(private val connection: WheelConnection) {
 
-
     private var startTime: NowAndTimestamp? = null
     private var out: BufferedOutputStream? = null
     private var scope: CoroutineScope? = null
     private var characteristicsKeys: CharacteristicsKeys? = null
 
-    val isRecording get() = out != null
+    val isRecording = MutableStateFlow(false)
 
     fun start(context: Context) {
+        isRecording.value = true
         characteristicsKeys = CharacteristicsKeys()
         startTime = TimeUtils.timestampNow()
         out = generateRecordingFilename(context)
@@ -62,6 +63,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         out?.close()
         characteristicsKeys = null
         out = null
+        isRecording.value = false
     }
 
     fun shutDown() {

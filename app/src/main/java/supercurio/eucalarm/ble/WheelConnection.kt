@@ -11,9 +11,13 @@ import kotlinx.coroutines.runBlocking
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
+import supercurio.eucalarm.power.PowerManagement
 import java.util.*
 
-class WheelConnection(val wheelData: WheelDataInterface) {
+class WheelConnection(
+    private val wheelData: WheelDataInterface,
+    private val powerManagement: PowerManagement
+) {
 
     private var shouldStayConnected = false
 
@@ -29,7 +33,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
     val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
     val connectionLost = _connectionLost.asStateFlow()
 
-    var bleConnectionReady = false
+    val bleConnectionReady = MutableStateFlow(false)
 
     val gatt
         get() = bleGatt
@@ -40,6 +44,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
     fun connectDevice(context: Context, device: BluetoothDevice) {
         Log.i(TAG, "connectDevice()")
         shouldStayConnected = true
+        powerManagement.addLock(TAG)
         bleGatt?.connect() ?: run {
             bleGatt = device.connectGatt(context, false, gattCallback)
         }
@@ -47,6 +52,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
 
     fun disconnectDevice() {
         shouldStayConnected = false
+        powerManagement.removeLock(TAG)
         notificationChar?.let {
             bleGatt?.setCharacteristicNotification(it, false)
         }
@@ -72,7 +78,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
                     Log.i(TAG, "STATE_DISCONNECTED")
-                    bleConnectionReady = false
+                    bleConnectionReady.value = false
 
                     gotwayWheel = null
                     veteranWheel = null
@@ -95,7 +101,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
             setupGotwayType()
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
-            bleConnectionReady = true
+            bleConnectionReady.value = true
             _connectionLost.value = false
         }
 
@@ -139,7 +145,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
 
         private var instance: WheelConnection? = null
 
-        fun getInstance(wheelData: WheelDataInterface) =
-            instance ?: WheelConnection(wheelData).also { instance = it }
+        fun getInstance(wheelData: WheelDataInterface, powerManagement: PowerManagement) =
+            instance ?: WheelConnection(wheelData, powerManagement).also { instance = it }
     }
 }

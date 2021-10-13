@@ -15,24 +15,29 @@ import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
+import supercurio.eucalarm.power.PowerManagement
 
 class AppService : Service() {
     private val scope = MainScope() + CoroutineName(TAG)
 
     override fun onBind(intent: Intent): Binder? = null
 
-    private val wheelData = WheelDataStateFlows()
-    private val wheelConnection = WheelConnection.getInstance(wheelData)
-    private val alert = AlertFeedback.getInstance(wheelData, wheelConnection)
-
-    private val wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+    private val wheelData = WheelDataStateFlows.getInstance()
+    private lateinit var powerManagement: PowerManagement
+    private lateinit var wheelConnection: WheelConnection
+    private lateinit var alert: AlertFeedback
+    private lateinit var wheelBleRecorder: WheelBleRecorder
     private lateinit var simulator: WheelBleSimulator
 
     override fun onCreate() {
         super.onCreate()
-
+        powerManagement = PowerManagement.getInstance(applicationContext)
+        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement)
+        alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         alert.setup(applicationContext, scope)
-        simulator = WheelBleSimulator.getInstance(applicationContext)
+
+        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+        simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -52,6 +57,7 @@ class AppService : Service() {
         wheelConnection.shutdown()
         simulator.shutdown()
         alert.shutdown()
+        powerManagement.releaseAll()
         scope.cancel()
     }
 
