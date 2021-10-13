@@ -75,6 +75,6 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
         private const val FRAME_SIZE = 36
 
         private const val DEBUG_LOGGING = false
-        private const val DATA_LOGGING = true
+        private const val DATA_LOGGING = false
     }
 }

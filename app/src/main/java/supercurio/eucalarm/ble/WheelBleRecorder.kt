@@ -131,8 +131,8 @@ class WheelBleRecorder(private val connection: WheelConnection) {
     }.writeWireMessageTo(out)
 
     private fun writeRecordingInfo() = recordingInfo {
-        startTime?.let { startTimestamp = it.timestamp }
-    }.writeDelimitedTo(out)
+        startTime?.timestamp?.let { startTimestamp = it }
+    }.writeWireMessageTo(out)
 
     private fun Any.writeWireMessageTo(out: BufferedOutputStream?) {
         if (out == null) return

@@ -12,7 +12,8 @@ import java.text.SimpleDateFormat
 
 
 fun main() {
-    val startMs = System.currentTimeMillis()
+
+    val runStartMs = System.currentTimeMillis()
 
     val input = File("/tmp/sample.bwr").inputStream().buffered()
 
@@ -51,10 +52,14 @@ fun main() {
     val gotwayWheel = GotwayWheel(wheelData)
     val veteranWheel = VeteranWheel(wheelData)
 
+    var startMs = System.currentTimeMillis()
     while (input.available() > 0) {
         val message = RecordingMessageType.parseDelimitedFrom(input)
 
         when {
+            message.hasRecordingInfo() -> {
+                startMs = message.recordingInfo.startTimestamp.toMs()
+            }
             message.hasGattNotification() -> {
                 val notification = message.gattNotification
 
@@ -70,7 +75,7 @@ fun main() {
 
     output.flush()
     output.close()
-    val elapsed = System.currentTimeMillis() - startMs
+    val elapsed = System.currentTimeMillis() - runStartMs
 
-    println("Elapsed: $elapsed ms")
+    println("Written to CSV in $elapsed ms")
 }
