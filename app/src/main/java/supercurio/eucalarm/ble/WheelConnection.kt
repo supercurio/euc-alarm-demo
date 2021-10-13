@@ -29,7 +29,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
     val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
     val connectionLost = _connectionLost.asStateFlow()
 
-    val bleConnectionReady = MutableStateFlow(false)
+    var bleConnectionReady = false
 
     val gatt
         get() = bleGatt
@@ -72,7 +72,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
                     Log.i(TAG, "STATE_DISCONNECTED")
-                    bleConnectionReady.value = false
+                    bleConnectionReady = false
 
                     gotwayWheel = null
                     veteranWheel = null
@@ -95,7 +95,7 @@ class WheelConnection(val wheelData: WheelDataInterface) {
             setupGotwayType()
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
-            bleConnectionReady.value = true
+            bleConnectionReady = true
             _connectionLost.value = false
         }
 

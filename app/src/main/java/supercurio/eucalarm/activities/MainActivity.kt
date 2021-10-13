@@ -62,8 +62,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-
-        AppService.enable(applicationContext, false)
+        Log.i(TAG, "onDestroy")
 
         findWheel.stopLeScan()
         scope.cancel()
@@ -167,20 +166,18 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            if (wheelConnection.bleConnectionReady.collectAsState().value) {
+            if (wheelConnection.bleConnectionReady) {
                 if (wheelConnection.isConnected()) Button(onClick = {
                     wheelConnection.disconnectDevice()
                 }) { Text("Disconnect from ${wheelConnection.device?.name}") }
 
-                var recordingState by remember { mutableStateOf(false) }
+                val recordingState = wheelBleRecorder.isRecording
                 if (!recordingState) {
                     Button(onClick = {
-                        recordingState = true
                         record()
                     }) { Text("Record") }
                 } else {
                     Button(onClick = {
-                        recordingState = false
                         stopRecording()
                     }) { Text("Stop recording") }
                 }

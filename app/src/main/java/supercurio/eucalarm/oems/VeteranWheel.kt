@@ -48,8 +48,8 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
 
         if (DATA_LOGGING) println(
             "voltage: $voltage V, speed $speed kph, distance: $distance km, " +
-                    "totalDistance: $totalDistance, current: $current A," +
-                    "temperature: ${temperature.roundToInt()}"
+                    "totalDistance: $totalDistance, current: $current A, " +
+                    "temperature: $temperature"
         )
     }
 

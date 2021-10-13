@@ -16,17 +16,20 @@ import java.util.*
 
 class WheelBleRecorder(private val connection: WheelConnection) {
 
+
     private var startTime: NowAndTimestamp? = null
-    private var outFile: File? = null
     private var out: BufferedOutputStream? = null
     private var scope: CoroutineScope? = null
     private var characteristicsKeys: CharacteristicsKeys? = null
 
+    val isRecording get() = out != null
+
     fun start(context: Context) {
         characteristicsKeys = CharacteristicsKeys()
         startTime = TimeUtils.timestampNow()
-        outFile = generateRecordingFilename(context)
-        out = outFile?.outputStream()?.buffered()
+        out = generateRecordingFilename(context)
+            .outputStream()
+            .buffered()
 
         connection.gatt?.let { gatt ->
             // serves as header
@@ -58,13 +61,12 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         out?.flush()
         out?.close()
         characteristicsKeys = null
+        out = null
     }
 
     fun shutDown() {
         stop()
         startTime = null
-        outFile = null
-        out = null
         scope?.cancel()
         scope = null
         // always re-use the same instance after clearing it
