@@ -22,7 +22,12 @@ class WheelBleRecorder(private val connection: WheelConnection) {
     private var scope: CoroutineScope? = null
     private var characteristicsKeys: CharacteristicsKeys? = null
 
-    init {
+    fun start(context: Context) {
+        characteristicsKeys = CharacteristicsKeys()
+        startTime = TimeUtils.timestampNow()
+        outFile = generateRecordingFilename(context)
+        out = outFile?.outputStream()?.buffered()
+
         connection.gatt?.let { gatt ->
             // serves as header
             writeDeviceInfo(
@@ -39,16 +44,10 @@ class WheelBleRecorder(private val connection: WheelConnection) {
                 }
             }
         }
-    }
 
-    fun start(context: Context) {
         val scope = (MainScope() + CoroutineName(TAG)).also { scope = it }
-        scope.launch {
-            characteristicsKeys = CharacteristicsKeys()
-            startTime = TimeUtils.timestampNow()
-            outFile = generateRecordingFilename(context)
-            out = outFile?.outputStream()?.buffered()
 
+        scope.launch {
             connection.notifiedCharacteristic.collect { notifiedCharacteristic ->
                 writeNotificationData(notifiedCharacteristic)
             }
@@ -73,6 +72,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
 
     private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) =
         characteristicsKeys?.let { characteristicsKeys ->
+
             gattNotification {
                 characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid]
                     ?: error("Invalid characteristic")

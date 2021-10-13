@@ -2,6 +2,7 @@ package supercurio.eucalarm.ble
 
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
+import android.util.Log
 import supercurio.wheeldata.recording.BleDeviceInfo
 
 class CharacteristicsKeys {
@@ -44,5 +45,14 @@ class CharacteristicsKeys {
     fun clear() {
         uuidToKey.clear()
         keyToCharacteristicCache.clear()
+    }
+
+    fun list() {
+        Log.i(TAG, "uuidToKey: $uuidToKey")
+        Log.i(TAG, "keyToCharacteristicCache: $keyToCharacteristicCache")
+    }
+
+    companion object {
+        private const val TAG = "CharacteristicsKeys"
     }
 }
