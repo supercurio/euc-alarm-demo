@@ -172,7 +172,7 @@ class AlertFeedback(
     }
 
     private fun setupKeepAliveTrack(): AudioTrack {
-        val frames = 64
+        val frames = 1024
 
         val audioAttributes = AudioAttributes.Builder()
             .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
