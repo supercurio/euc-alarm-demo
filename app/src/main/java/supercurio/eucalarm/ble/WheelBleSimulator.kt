@@ -21,7 +21,7 @@ import java.util.*
 
 class WheelBleSimulator(context: Context, private val powerManagement: PowerManagement) {
 
-    private val scope = MainScope() + CoroutineName(TAG)
+    private val simulatorScope = MainScope() + CoroutineName(TAG)
     private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
     private lateinit var server: SuspendingGattServer
@@ -34,7 +34,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private var connectedDevice: BluetoothDevice? = null
     private var doReplay = false
 
-    suspend fun start(context: Context, inputFile: File) {
+    fun start(context: Context, inputFile: File) {
         powerManagement.addLock(TAG)
 
         characteristicsKeys = CharacteristicsKeys()
@@ -78,7 +78,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
                     srv.addCharacteristic(char)
                 }
 
-                server.addService(srv)
+                simulatorScope.launch { server.addService(srv) }
             }
         }
 
@@ -215,7 +215,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             offset: Int,
             value: ByteArray?
         ) {
-            scope.launch {
+            simulatorScope.launch {
                 connectedDevice = device
                 try {
                     replay(device)
@@ -241,6 +241,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     }
 
     fun shutdown() {
+        simulatorScope.cancel()
         instance = null
     }
 

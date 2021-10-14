@@ -19,7 +19,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
 
     private var startTime: NowAndTimestamp? = null
     private var out: BufferedOutputStream? = null
-    private var scope: CoroutineScope? = null
+    private var recorderScope: CoroutineScope? = null
     private var characteristicsKeys: CharacteristicsKeys? = null
 
     val isRecording = MutableStateFlow(false)
@@ -49,7 +49,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
             }
         }
 
-        val scope = (MainScope() + CoroutineName(TAG)).also { scope = it }
+        val scope = (MainScope() + CoroutineName(TAG)).also { recorderScope = it }
 
         scope.launch {
             connection.notifiedCharacteristic.collect { notifiedCharacteristic ->
@@ -69,8 +69,8 @@ class WheelBleRecorder(private val connection: WheelConnection) {
     fun shutDown() {
         stop()
         startTime = null
-        scope?.cancel()
-        scope = null
+        recorderScope?.cancel()
+        recorderScope = null
         // always re-use the same instance after clearing it
     }
 

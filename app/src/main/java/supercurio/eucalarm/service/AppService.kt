@@ -18,7 +18,7 @@ import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 
 class AppService : Service() {
-    private val scope = MainScope() + CoroutineName(TAG)
+    private val serviceScope = MainScope() + CoroutineName(TAG)
 
     override fun onBind(intent: Intent): Binder? = null
 
@@ -34,7 +34,7 @@ class AppService : Service() {
         powerManagement = PowerManagement.getInstance(applicationContext)
         wheelConnection = WheelConnection.getInstance(wheelData, powerManagement)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
-        alert.setup(applicationContext, scope)
+        alert.setup(applicationContext, serviceScope)
 
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
@@ -58,7 +58,7 @@ class AppService : Service() {
         simulator.shutdown()
         alert.shutdown()
         powerManagement.releaseAll()
-        scope.cancel()
+        serviceScope.cancel()
     }
 
     companion object {

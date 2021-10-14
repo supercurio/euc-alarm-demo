@@ -3,9 +3,6 @@ package supercurio.eucalarm.ble
 //import com.google.protobuf.util.JsonFormat
 import android.os.SystemClock
 import android.util.Log
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.plus
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
@@ -15,7 +12,6 @@ import java.io.InputStream
 
 class WheelBlePlayer(private val input: InputStream) {
 
-    private val scope = MainScope() + CoroutineName(TAG)
     private val characteristicsKeys = CharacteristicsKeys()
     private var playing = false
 

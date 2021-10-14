@@ -38,7 +38,15 @@ import java.text.DecimalFormat
 
 class MainActivity : ComponentActivity() {
 
-    private val scope = MainScope() + CoroutineName(TAG)
+    /**
+     * TODO:
+     *  * a picker for the device connection
+     *  * show something that represents the current connection status
+     *  * look into Bluetooth connection receiver to sync with EUC World / WheelLog
+     *  * find potential Settings-type UI in Compose
+     */
+
+    private val activityScope = MainScope() + CoroutineName(TAG)
 
     private val wheelData = WheelDataStateFlows.getInstance()
     private lateinit var powerManagement: PowerManagement
@@ -73,7 +81,7 @@ class MainActivity : ComponentActivity() {
         Log.i(TAG, "onDestroy")
 
         findWheel.stopLeScan()
-        scope.cancel()
+        activityScope.cancel()
     }
 
     @OptIn(ExperimentalPermissionsApi::class)
@@ -273,7 +281,7 @@ class MainActivity : ComponentActivity() {
             ?: resources.openRawResource(R.raw.sample)
         player = WheelBlePlayer(input)
 
-        scope.launch {
+        activityScope.launch {
             // player?.printAsJson()
             player?.decode(wheelData)
         }
@@ -282,7 +290,7 @@ class MainActivity : ComponentActivity() {
     private fun simulateLastRecording() {
         val lastRecordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
 
-        scope.launch { simulator?.start(applicationContext, lastRecordingFile) }
+        simulator.start(applicationContext, lastRecordingFile)
     }
 
     private fun manualStop() {
