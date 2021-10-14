@@ -33,6 +33,7 @@ import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
+import supercurio.eucalarm.utils.RecordingProvider
 import java.text.DecimalFormat
 
 
@@ -179,7 +180,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.clickable(onClick = {
                         wheelConnection.connectDevice(applicationContext, it)
                     }),
-                    text = "Device name: ${it.name}, addr:${it.address}"
+                    text = "Device name: ${it.device.name}, addr:${it.device.address}"
                 )
             }
 
@@ -277,9 +278,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playLastRecording() {
-        val input = WheelBleRecorder.getLastRecordingFile(applicationContext)?.inputStream()
-            ?: resources.openRawResource(R.raw.sample)
-        player = WheelBlePlayer(input)
+        val recording = RecordingProvider.getLastRecordingOrSample(applicationContext)
+
+        player = WheelBlePlayer(recording)
 
         activityScope.launch {
             // player?.printAsJson()
@@ -288,9 +289,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun simulateLastRecording() {
-        val lastRecordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
+        val recording = RecordingProvider.getLastRecordingOrSample(applicationContext)
 
-        simulator.start(applicationContext, lastRecordingFile)
+        simulator.start(applicationContext, recording)
     }
 
     private fun manualStop() {

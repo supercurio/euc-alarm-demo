@@ -6,11 +6,11 @@ import android.util.Log
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
+import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
-import java.io.InputStream
 
-class WheelBlePlayer(private val input: InputStream) {
+class WheelBlePlayer(private val input: RecordingProvider) {
 
     private val characteristicsKeys = CharacteristicsKeys()
     private var playing = false
@@ -30,8 +30,8 @@ class WheelBlePlayer(private val input: InputStream) {
 
         playing = true
 
-        while (input.available() > 0 && playing) {
-            val message = RecordingMessageType.parseDelimitedFrom(input)
+        while (playing && input.available() > 0) {
+            val message = RecordingMessageType.parseDelimitedFrom(input.inputStream)
 
             when {
                 message.hasBleDeviceInfo() ->
@@ -54,6 +54,7 @@ class WheelBlePlayer(private val input: InputStream) {
 
     fun stop() {
         playing = false
+        input.close()
     }
 
     companion object {

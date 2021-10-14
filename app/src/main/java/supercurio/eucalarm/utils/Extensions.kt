@@ -7,6 +7,7 @@ fun BluetoothGattCharacteristic.hasNotify() =
     properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
 
 
+fun ByteArray.toHexString() = asList().toHexString()
 fun List<Byte>.toHexString() = map { String.format("%02x", it) }
 
 fun <K, V> Map<K, V>.reversed() = HashMap<V, K>().also { newMap ->

@@ -13,7 +13,7 @@ class FindWheel(private val context: Context) {
 
     private var bluetoothLeScanner: BluetoothLeScanner? = null
     val isScanning = MutableStateFlow(false)
-    val foundWheel = MutableStateFlow<BluetoothDevice?>(null)
+    val foundWheel = MutableStateFlow<DeviceFound?>(null)
 
     fun find() {
         startLeScan()
@@ -55,7 +55,7 @@ class FindWheel(private val context: Context) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             Log.i(TAG, "LE scan result: $result")
 
-            foundWheel.value = result.device
+            foundWheel.value = DeviceFound(result.device, result.scanRecord)
             isScanning.value = false
 
             bluetoothLeScanner?.stopScan(this)
@@ -98,13 +98,15 @@ class FindWheel(private val context: Context) {
                 it.uuid.toString() == GotwayWheel.SERVICE_UUID
             }?.let {
                 stopLeScan()
-                foundWheel.value = gatt.device
+                foundWheel.value = DeviceFound(gatt.device, null)
             }
         }
     }
-
 
     companion object {
         private const val TAG = "FindWheel"
     }
 }
+
+
+data class DeviceFound(val device: BluetoothDevice, val scanRecord: ScanRecord?)

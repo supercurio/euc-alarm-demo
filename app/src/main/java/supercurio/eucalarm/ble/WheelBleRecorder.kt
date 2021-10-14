@@ -1,7 +1,10 @@
 package supercurio.eucalarm.ble
 
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.le.ScanRecord
 import android.content.Context
-import com.google.protobuf.ByteString
+import androidx.core.util.forEach
+import com.google.protobuf.kotlin.toByteString
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -35,7 +38,10 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         connection.gatt?.let { gatt ->
             // serves as header
             writeDeviceInfo(
-                WheelBleDeviceInfo.fromGatt(gatt)
+                deviceAddress = gatt.device.address,
+                deviceName = gatt.device.name ?: "name-missing",
+                deviceServices = gatt.services,
+                scanRecord = connection.advertisement
             )
 
             writeRecordingInfo()
@@ -81,7 +87,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
                 characteristicKey = characteristicsKeys[notifiedCharacteristic.uuid]
                     ?: error("Invalid characteristic")
                 startTime?.nano?.let { elapsedTimestamp = TimeUtils.timestampSinceNanos(it) }
-                bytes = ByteString.copyFrom(notifiedCharacteristic.value)
+                bytes = notifiedCharacteristic.value.toByteString()
             }.writeWireMessageTo(out)
         }
 
@@ -98,14 +104,19 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         return File(destDir, "$name-$strDate.bwr")
     }
 
-    private fun writeDeviceInfo(deviceInfo: WheelBleDeviceInfo) = bleDeviceInfo {
+    private fun writeDeviceInfo(
+        deviceAddress: String,
+        deviceName: String,
+        deviceServices: List<BluetoothGattService>,
+        scanRecord: ScanRecord?
+    ) = bleDeviceInfo {
         val characteristicsKeys = characteristicsKeys ?: return
 
-        address = deviceInfo.address
-        name = deviceInfo.name
+        address = deviceAddress
+        name = deviceName
 
         var characteristicId = 0
-        gattServices += deviceInfo.services.map { service ->
+        gattServices += deviceServices.map { service ->
             gattService {
                 uuid = service.uuid.toString()
                 type = service.type
@@ -124,6 +135,17 @@ class WheelBleRecorder(private val connection: WheelConnection) {
                         }
                     }
                     characteristicId++
+                }
+            }
+        }
+
+        scanRecord?.let { scanRecord ->
+            advertisement = bleAdvertisement {
+                scanRecord.serviceData.forEach { (uuid, bytes) ->
+                    serviceData[uuid.toString()] = bytes.toByteString()
+                }
+                scanRecord.manufacturerSpecificData.forEach { key, value ->
+                    manufacturerData[key] = value.toByteString()
                 }
             }
         }

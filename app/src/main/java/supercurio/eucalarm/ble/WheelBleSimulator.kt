@@ -13,10 +13,11 @@ import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.power.PowerManagement
+import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
+import supercurio.eucalarm.utils.toHexString
+import supercurio.wheeldata.recording.BleAdvertisement
 import supercurio.wheeldata.recording.RecordingMessageType
-import java.io.File
-import java.io.InputStream
 import java.util.*
 
 class WheelBleSimulator(context: Context, private val powerManagement: PowerManagement) {
@@ -25,23 +26,21 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
     private lateinit var server: SuspendingGattServer
-    private lateinit var file: File
-    private lateinit var input: InputStream
+    private lateinit var input: RecordingProvider
 
     private var characteristicsKeys: CharacteristicsKeys? = null
     private var originalBtName: String? = null
     private var advertiser: BluetoothLeAdvertiser? = null
     private var connectedDevice: BluetoothDevice? = null
+    private var advertisement: BleAdvertisement? = null
     private var doReplay = false
 
-    fun start(context: Context, inputFile: File) {
+    fun start(context: Context, recordingProvider: RecordingProvider) {
         powerManagement.addLock(TAG)
+        input = recordingProvider
 
         characteristicsKeys = CharacteristicsKeys()
 
-        file = inputFile
-
-        resetInput()
         server = SuspendingGattServer(context, gattServerCallback)
         readDeviceInfo().let { deviceInfo ->
             characteristicsKeys?.fromDeviceInfo(deviceInfo)
@@ -80,13 +79,14 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
 
                 simulatorScope.launch { server.addService(srv) }
             }
-        }
 
-        startAdvertising()
+            advertisement = deviceInfo.advertisement
+            startAdvertising()
+        }
     }
 
     private fun readDeviceInfo() = RecordingMessageType
-        .parseDelimitedFrom(input)
+        .parseDelimitedFrom(input.inputStream)
         .bleDeviceInfo
 
     private fun startAdvertising() {
@@ -98,7 +98,18 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         val advertiseData = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .addServiceUuid(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID))
-            .build()
+            .apply {
+                advertisement?.let { advertisement ->
+                    advertisement.manufacturerDataMap.forEach { (id, bytes) ->
+                        addManufacturerData(id, bytes.toByteArray())
+                    }
+                    // FIXME: fails to advertise when adding service data
+                    if (ADVERTISE_SERVICE_DATA)
+                        advertisement.serviceDataMap.forEach { (uuid, bytes) ->
+                            addServiceData(ParcelUuid.fromString(uuid), bytes.toByteArray())
+                        }
+                }
+            }.build()
 
         advertiser = btManager.adapter.bluetoothLeAdvertiser.apply {
             startAdvertising(advertiseSettings, advertiseData, advertiserCallback)
@@ -130,12 +141,12 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private suspend fun replay(device: BluetoothDevice) {
         val characteristicsKeys = characteristicsKeys ?: return
         Log.i(TAG, "Replay")
-        resetInput()
+        input.reset()
         doReplay = true
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         while (input.available() > 0 && doReplay) {
-            val message = RecordingMessageType.parseDelimitedFrom(input)
+            val message = RecordingMessageType.parseDelimitedFrom(input.inputStream)
 
             when {
                 message.hasGattNotification() -> {
@@ -155,11 +166,6 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         }
     }
 
-    private fun resetInput() {
-        val input = file.inputStream().buffered()
-        this.input = input
-    }
-
     private fun stopReplay() {
         doReplay = false
     }
@@ -175,14 +181,9 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
                 else -> ""
             }
             Log.i(TAG, "Device: $device, status: $status, newState: $newStateText")
-            if (newState == BluetoothGattServer.STATE_CONNECTING ||
-                newState == BluetoothGattServer.STATE_CONNECTED
-            ) stopAdvertising()
 
-            if (newState == BluetoothGattServer.STATE_DISCONNECTED) {
+            if (newState == BluetoothGattServer.STATE_DISCONNECTED && connectedDevice == device)
                 stopReplay()
-                startAdvertising()
-            }
         }
 
         override fun onCharacteristicWriteRequest(
@@ -251,6 +252,8 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             "00001800-0000-1000-8000-00805f9b34fb",
             "00001801-0000-1000-8000-00805f9b34fb",
         )
+
+        private const val ADVERTISE_SERVICE_DATA = false
 
         private var instance: WheelBleSimulator? = null
         fun getInstance(context: Context, powerManagement: PowerManagement) =

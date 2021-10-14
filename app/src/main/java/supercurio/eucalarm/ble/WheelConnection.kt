@@ -1,6 +1,9 @@
 package supercurio.eucalarm.ble
 
-import android.bluetooth.*
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,6 +28,7 @@ class WheelConnection(
     private var notificationChar: BluetoothGattCharacteristic? = null
     private var gotwayWheel: GotwayWheel? = null
     private var veteranWheel: VeteranWheel? = null
+    private var deviceFound: DeviceFound? = null
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -35,18 +39,19 @@ class WheelConnection(
 
     val bleConnectionReady = MutableStateFlow(false)
 
-    val gatt
-        get() = bleGatt
+    val gatt get() = bleGatt
 
-    val device
-        get() = bleGatt?.device
+    val advertisement get() = deviceFound?.scanRecord
 
-    fun connectDevice(context: Context, device: BluetoothDevice) {
+    val device get() = bleGatt?.device
+
+    fun connectDevice(context: Context, deviceFound: DeviceFound) {
+        this.deviceFound = deviceFound
         Log.i(TAG, "connectDevice()")
         shouldStayConnected = true
         powerManagement.addLock(TAG)
         bleGatt?.connect() ?: run {
-            bleGatt = device.connectGatt(context, false, gattCallback)
+            bleGatt = deviceFound.device.connectGatt(context, false, gattCallback)
         }
     }
 

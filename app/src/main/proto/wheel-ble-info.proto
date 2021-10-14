@@ -7,12 +7,14 @@ message BleDeviceInfo {
     string address = 1;
     optional string name = 2;
     repeated GattService gatt_services = 3;
+    BleAdvertisement advertisement = 4;
+}
 
-    // used for advertising in a simulator
-    repeated string service_uuids = 4;
-    map <string, bytes> service_data = 5;
-    optional int32 manufacturer_id = 6;
-    optional bytes manufacturer_data = 7;
+message BleAdvertisement {
+    // used to replicate advertising in a simulator
+    repeated string service_uuids = 1;
+    map <string, bytes> service_data = 2;
+    map <int32, bytes> manufacturer_data = 3;
 }
 
 message GattService {
