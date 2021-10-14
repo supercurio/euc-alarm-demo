@@ -24,6 +24,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
 
         val bufferList = ringBuffer.toList()
 
+        // check if we got an end sequence
         val index = Collections.indexOfSubList(bufferList, END_SEQUENCE)
         if (index != -1) {
 

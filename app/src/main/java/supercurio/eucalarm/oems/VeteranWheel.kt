@@ -2,6 +2,9 @@ package supercurio.eucalarm.oems
 
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.DataParsing.capSize
+import supercurio.eucalarm.utils.DataParsing.declareByteArray
+import supercurio.eucalarm.utils.DataParsing.endsWith
+import supercurio.eucalarm.utils.DataParsing.startsWith
 import supercurio.eucalarm.utils.showBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -17,10 +20,20 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
     fun findFrame(data: ByteArray) {
         if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
 
+        // keep only first or second packets
+        if (data.size != 20 && data.size != 16) return
+
+        // identify first packet
+        if (data.size == 20 && !data.startsWith(FRAME_HEADER)) return
+
+        // identify second packet
+        if (data.size == 16 && !data.endsWith(FRAME_FOOTER)) return
+
         // handle the case if the 2nd packet was received first
         if (data.size == 20 && ringBuffer.size > 0)
             ringBuffer.clear()
 
+        // prevent the buffer to grow
         ringBuffer.capSize(FRAME_SIZE, data)
 
         ringBuffer.addAll(data.asList())
@@ -40,8 +53,8 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
 
         val voltage = frame.short / 100.0
         val speed = frame.short / 10.0
-        val distance = revInt(frame.int) / 1000.0
-        val totalDistance = revInt(frame.int) / 1000.0
+        val distance = frame.int.reversed() / 1000.0
+        val totalDistance = frame.int.reversed() / 1000.0
 
         val current = frame.short / 10.0
         val temperature = frame.short / 100.0
@@ -62,9 +75,9 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
         )
     }
 
-    private fun revInt(value: Int): Int {
+    private fun Int.reversed(): Int {
         val buffer = ByteBuffer.allocate(Int.SIZE_BYTES)
-        buffer.putInt(value)
+        buffer.putInt(this)
         val revBuf = byteArrayOf(buffer[2], buffer[3], buffer[0], buffer[1])
         return ByteBuffer.wrap(revBuf).int
     }
@@ -73,6 +86,9 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
         private const val TAG = "VeteranWheel"
 
         private const val FRAME_SIZE = 36
+
+        private val FRAME_HEADER = declareByteArray(0xdc, 0x5a, 0x5c, 0x20)
+        private val FRAME_FOOTER = declareByteArray(0x00, 0x00)
 
         private const val DEBUG_LOGGING = false
         private const val DATA_LOGGING = false
