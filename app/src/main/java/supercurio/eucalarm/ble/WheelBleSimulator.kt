@@ -216,6 +216,8 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             offset: Int,
             value: ByteArray?
         ) {
+            Log.i(TAG, "onDescriptorWriteRequest value: ${value?.toHexString()}")
+
             simulatorScope.launch {
                 connectedDevice = device
                 try {
@@ -249,8 +251,9 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     companion object {
         private const val TAG = "WheelBleSimulator"
         private val SKIP_SERVICES = listOf(
-            "00001800-0000-1000-8000-00805f9b34fb",
-            "00001801-0000-1000-8000-00805f9b34fb",
+            "00001800-0000-1000-8000-00805f9b34fb", // Generic Access
+            "00001801-0000-1000-8000-00805f9b34fb", // Generic Attribute
+            "0000180a-0000-1000-8000-00805f9b34fb", // Device Information
         )
 
         private const val ADVERTISE_SERVICE_DATA = false
