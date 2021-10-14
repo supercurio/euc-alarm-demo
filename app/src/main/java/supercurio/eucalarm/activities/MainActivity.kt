@@ -26,7 +26,6 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.*
-import supercurio.eucalarm.R
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
@@ -61,6 +60,8 @@ class MainActivity : ComponentActivity() {
     private var player: WheelBlePlayer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
+
         AppService.enable(applicationContext, true)
 
         powerManagement = PowerManagement.getInstance(applicationContext)
@@ -258,7 +259,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun shareRecording() {
-        val recordingFile = WheelBleRecorder.getLastRecordingFile(applicationContext) ?: return
+        val recordingFile = RecordingProvider.getLastRecordingFile(applicationContext) ?: return
 
         val uri = FileProvider.getUriForFile(
             applicationContext,
@@ -299,6 +300,19 @@ class MainActivity : ComponentActivity() {
         finish()
     }
 
+    private fun getSharedRecordingFile(intent: Intent) {
+        val inputStream = intent.data?.let { contentResolver.openInputStream(it) }
+        inputStream?.let {
+            val out = RecordingProvider
+                .generateImportedFilename(applicationContext)
+                .outputStream()
+
+            val copied = it.copyTo(out)
+            out.close()
+            Log.i(TAG, "Copied: $copied bytes")
+            it.close()
+        }
+    }
 
     companion object {
         private const val TAG = "MainActivity"

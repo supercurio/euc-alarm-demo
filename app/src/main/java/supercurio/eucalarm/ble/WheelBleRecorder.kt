@@ -9,14 +9,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import supercurio.eucalarm.utils.NowAndTimestamp
+import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.eucalarm.utils.hasNotify
 import supercurio.wheeldata.recording.*
 import java.io.BufferedOutputStream
-import java.io.File
-import java.text.DateFormat
-import java.text.SimpleDateFormat
-import java.util.*
 
 class WheelBleRecorder(private val connection: WheelConnection) {
 
@@ -31,7 +28,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         isRecording.value = true
         characteristicsKeys = CharacteristicsKeys()
         startTime = TimeUtils.timestampNow()
-        out = generateRecordingFilename(context)
+        out = RecordingProvider.generateRecordingFilename(context, connection.gatt?.device?.name)
             .outputStream()
             .buffered()
 
@@ -91,18 +88,6 @@ class WheelBleRecorder(private val connection: WheelConnection) {
             }.writeWireMessageTo(out)
         }
 
-
-    private fun generateRecordingFilename(context: Context): File {
-        val destDir = File(context.filesDir, RECORDINGS_DIR)
-        destDir.mkdirs()
-
-        val date = Calendar.getInstance().time
-        val dateFormat: DateFormat = SimpleDateFormat("yyyy-mm-dd_HH:mm:ss", Locale.ROOT)
-        val strDate: String = dateFormat.format(date)
-
-        val name = connection.gatt?.device?.name ?: "no-name"
-        return File(destDir, "$name-$strDate.bwr")
-    }
 
     private fun writeDeviceInfo(
         deviceAddress: String,
@@ -178,13 +163,6 @@ class WheelBleRecorder(private val connection: WheelConnection) {
 
     companion object {
         private const val TAG = "WheelBleRecorder"
-        private const val RECORDINGS_DIR = "recordings"
-
-        fun getLastRecordingFile(context: Context): File? {
-            val filesList = File(context.filesDir, RECORDINGS_DIR).listFiles()
-            filesList?.sortByDescending { it.lastModified() }
-            return filesList?.first()
-        }
 
         private var instance: WheelBleRecorder? = null
         fun getInstance(connection: WheelConnection) =

@@ -2,9 +2,11 @@ package supercurio.eucalarm.utils
 
 import android.content.Context
 import supercurio.eucalarm.R
-import supercurio.eucalarm.ble.WheelBleRecorder
 import java.io.File
 import java.io.InputStream
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.*
 
 class RecordingProvider(
     private val context: Context,
@@ -33,8 +35,36 @@ class RecordingProvider(
         fun getLastRecordingOrSample(context: Context) =
             RecordingProvider(
                 context,
-                WheelBleRecorder.getLastRecordingFile(context),
+                getLastRecordingFile(context),
                 R.raw.sample,
             )
+
+        fun getLastRecordingFile(context: Context): File? {
+            val filesList = File(context.filesDir, RECORDINGS_DIR).listFiles()
+            filesList?.sortByDescending { it.lastModified() }
+            return filesList?.first()
+        }
+
+        fun generateRecordingFilename(context: Context, deviceName: String?): File {
+            val destDir = File(context.filesDir, RECORDINGS_DIR)
+            destDir.mkdirs()
+
+            val date = Calendar.getInstance().time
+            val dateFormat: DateFormat = SimpleDateFormat("yyyy-mm-dd_HH:mm:ss", Locale.ROOT)
+            val strDate: String = dateFormat.format(date)
+
+            val name = deviceName ?: "no-name"
+            return File(destDir, "$name-$strDate.bwr")
+        }
+
+        fun generateImportedFilename(context: Context): File {
+            val destDir = File(context.filesDir, RECORDINGS_DIR)
+            destDir.mkdirs()
+
+            return File(destDir, "imported.bwr")
+        }
+
+        private const val RECORDINGS_DIR = "recordings"
+
     }
 }
