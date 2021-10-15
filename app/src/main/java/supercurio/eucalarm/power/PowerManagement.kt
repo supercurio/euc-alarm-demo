@@ -19,14 +19,20 @@ class PowerManagement(context: Context) {
         val wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, tag)
         wakeLock.setReferenceCounted(false)
         wakeLock.acquire()
+        activeWakelocks[tag] = wakeLock
+        Log.i(TAG, "Acquired wakelock for $tag")
     }
 
     fun removeLock(tag: String) {
-        activeWakelocks[tag]?.release()
+        activeWakelocks[tag]?.apply {
+            Log.i(TAG, "Release wakelock for $tag")
+            release()
+        }
         activeWakelocks.remove(tag)
     }
 
     fun releaseAll() {
+        Log.i(TAG, "Release all wakelocks")
         activeWakelocks.forEach { (tag, lock) ->
             Log.i(TAG, "Release $tag wakelock")
             lock.release()

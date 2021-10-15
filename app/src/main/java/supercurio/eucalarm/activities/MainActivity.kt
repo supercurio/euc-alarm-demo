@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
         Log.i(TAG, "onDestroy")
 
         findWheel.stopLeScan()
+        player.stop()
         activityScope.cancel()
     }
 
@@ -154,7 +155,7 @@ class MainActivity : ComponentActivity() {
             else
                 Button(onClick = { findWheel.stopLeScan() }) { Text("Stop Wheel Scan") }
 
-            Button(onClick = { manualStop() }) { Text("Stop app") }
+            Button(onClick = { manualStop() }) { Text("Stop and exit app") }
 
             Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
 

@@ -93,6 +93,7 @@ class AlertFeedback(
     }
 
     fun shutdown() {
+        Log.i(TAG, "Shutdown")
         stop()
         keepAliveTrack.pause()
 
@@ -218,6 +219,7 @@ class AlertFeedback(
 
 
     private fun onConnectionLoss(status: Boolean) {
+        Log.i(TAG, "onConnectionLoss: $status")
         if (status) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator.vibrate(VibrationEffect.createWaveform(connectionLossPattern, 0))

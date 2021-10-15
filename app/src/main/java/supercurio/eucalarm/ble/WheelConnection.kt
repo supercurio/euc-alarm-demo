@@ -63,6 +63,7 @@ class WheelConnection(
     }
 
     fun shutdown() {
+        Log.i(TAG, "Shutdown")
         disconnectDevice()
         instance = null
     }
@@ -125,7 +126,7 @@ class WheelConnection(
     }
 
     fun setupGotwayType() {
-        Log.i(TAG, "Setup wheel")
+        Log.i(TAG, "Setup connection")
         bleGatt?.let { gatt ->
             val service = gatt.getService(UUID.fromString(GotwayWheel.SERVICE_UUID))
             notificationChar = service.getCharacteristic(

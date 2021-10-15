@@ -244,6 +244,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     }
 
     fun shutdown() {
+        Log.i(TAG, "Shutdown")
         simulatorScope.cancel()
         instance = null
     }

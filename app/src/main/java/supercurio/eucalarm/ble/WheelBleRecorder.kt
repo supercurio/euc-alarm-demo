@@ -3,11 +3,13 @@ package supercurio.eucalarm.ble
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.le.ScanRecord
 import android.content.Context
+import android.util.Log
 import androidx.core.util.forEach
 import com.google.protobuf.kotlin.toByteString
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.utils.NowAndTimestamp
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
@@ -70,6 +72,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
     }
 
     fun shutDown() {
+        Log.i(TAG, "Shutdown")
         stop()
         startTime = null
         recorderScope?.cancel()
