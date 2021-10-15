@@ -4,13 +4,16 @@ package supercurio.wheeldata.recording;
 import "wheel-ble-info.proto";
 import "wheel-ble-data.proto";
 import "recording-info.proto";
+import "connection-status.proto";
 
 option java_multiple_files = true;
 
 message RecordingMessageType {
     oneof message {
+        // Expected to be a header at the beginning of each recording
         BleDeviceInfo ble_device_info = 1;
         GattNotification gatt_notification = 2;
         RecordingInfo recording_info = 3;
+        ConnectionStatus connection_status = 4;
     }
 }

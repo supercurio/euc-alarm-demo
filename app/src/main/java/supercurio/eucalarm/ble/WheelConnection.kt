@@ -27,7 +27,7 @@ class WheelConnection(
 
     private var shouldStayConnected = false
 
-    private var bleGatt: BluetoothGatt? = null
+    private var _gatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
     private var gotwayWheel: GotwayWheel? = null
     private var veteranWheel: VeteranWheel? = null
@@ -42,11 +42,11 @@ class WheelConnection(
 
     val bleConnectionReady = MutableStateFlow(false)
 
-    val gatt get() = bleGatt
+    val gatt get() = _gatt
 
     val advertisement get() = deviceFound?.scanRecord
 
-    val device get() = bleGatt?.device
+    val device get() = _gatt?.device
 
     fun connectDevice(context: Context, deviceFound: DeviceFound) {
         this.deviceFound = deviceFound
@@ -60,9 +60,10 @@ class WheelConnection(
             // already connected: connect if the connection is not already ready and we're not
             // trying to reconnect already
             BluetoothGatt.STATE_CONNECTED -> {
-                connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
-                if (!bleConnectionReady.value && !connectionLost.value)
-                    bleGatt?.discoverServices()
+                if (_gatt == null) {
+                    connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
+                    connectToDeviceFound(context, deviceFound.device)
+                }
             }
 
             BluetoothGatt.STATE_CONNECTING -> Log.i(TAG, "Device already connecting")
@@ -70,16 +71,20 @@ class WheelConnection(
             // disconnecting or disconnected, connect again
             BluetoothGatt.STATE_DISCONNECTING, BluetoothGatt.STATE_DISCONNECTED -> {
                 connectionState = BleConnectionState.CONNECTING
-                bleGatt = deviceFound.device.connectGatt(context, false, gattCallback)
+                connectToDeviceFound(context, deviceFound.device)
             }
         }
+    }
+
+    private fun connectToDeviceFound(context: Context, device: BluetoothDevice) {
+        _gatt = device.connectGatt(context, false, gattCallback)
     }
 
     fun disconnectDevice() {
         shouldStayConnected = false
         powerManagement.removeLock(TAG)
         notificationChar?.apply { gatt?.let { setNotification(it, false) } }
-        bleGatt?.disconnect()
+        _gatt?.disconnect()
     }
 
     fun shutdown() {
@@ -122,7 +127,7 @@ class WheelConnection(
                         gatt.connect()
                     } else {
                         connectionState = BleConnectionState.DISCONNECTED
-                        bleGatt = null
+                        _gatt = null
                         notificationChar = null
                         wheelData.clear()
                     }
@@ -135,6 +140,7 @@ class WheelConnection(
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
             setupGotwayType()
+            connectionState = BleConnectionState.CONNECTED_READY
             bleConnectionReady.value = true
             _connectionLost.value = false
         }
@@ -159,7 +165,7 @@ class WheelConnection(
 
     fun setupGotwayType() {
         Log.i(TAG, "Setup connection")
-        bleGatt?.let { gatt ->
+        _gatt?.let { gatt ->
             val service = gatt.getService(UUID.fromString(GotwayWheel.SERVICE_UUID))
             notificationChar = service.getCharacteristic(
                 UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)

@@ -2,9 +2,9 @@ package supercurio.eucalarm.ble
 
 enum class BleConnectionState {
     UNKNOWN,
-    SYSTEM_ALREADY_CONNECTED,
     DISCONNECTED,
     DISCONNECTING,
+    SYSTEM_ALREADY_CONNECTED,
     CONNECTING,
     DISCONNECTED_RECONNECTING,
     CONNECTED,
