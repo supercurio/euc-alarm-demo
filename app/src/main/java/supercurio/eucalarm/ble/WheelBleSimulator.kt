@@ -36,7 +36,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private var doReplay = false
 
     fun start(context: Context, recordingProvider: RecordingProvider) {
-        powerManagement.addLock(TAG)
+        powerManagement.getLock(TAG)
         input = recordingProvider
 
         characteristicsKeys = CharacteristicsKeys()

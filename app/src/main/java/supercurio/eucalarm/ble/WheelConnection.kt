@@ -1,11 +1,9 @@
 package supercurio.eucalarm.ble
 
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.*
 import android.content.Context
 import android.util.Log
+import androidx.core.content.getSystemService
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -21,6 +19,11 @@ class WheelConnection(
     private val wheelData: WheelDataInterface,
     private val powerManagement: PowerManagement
 ) {
+    var connectionState = BleConnectionState.UNKNOWN
+        set(value) {
+            Log.i(TAG, "ConnectionState change: $value")
+            field = value
+        }
 
     private var shouldStayConnected = false
 
@@ -49,9 +52,26 @@ class WheelConnection(
         this.deviceFound = deviceFound
         Log.i(TAG, "connectDevice()")
         shouldStayConnected = true
-        powerManagement.addLock(TAG)
-        bleGatt?.connect() ?: run {
-            bleGatt = deviceFound.device.connectGatt(context, false, gattCallback)
+        powerManagement.getLock(TAG)
+
+        val btManager = context.getSystemService<BluetoothManager>()!!
+
+        when (btManager.getConnectionState(deviceFound.device, BluetoothProfile.GATT)) {
+            // already connected: connect if the connection is not already ready and we're not
+            // trying to reconnect already
+            BluetoothGatt.STATE_CONNECTED -> {
+                connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
+                if (!bleConnectionReady.value && !connectionLost.value)
+                    bleGatt?.discoverServices()
+            }
+
+            BluetoothGatt.STATE_CONNECTING -> Log.i(TAG, "Device already connecting")
+
+            // disconnecting or disconnected, connect again
+            BluetoothGatt.STATE_DISCONNECTING, BluetoothGatt.STATE_DISCONNECTED -> {
+                connectionState = BleConnectionState.CONNECTING
+                bleGatt = deviceFound.device.connectGatt(context, false, gattCallback)
+            }
         }
     }
 
@@ -72,9 +92,18 @@ class WheelConnection(
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             when (newState) {
-                BluetoothGatt.STATE_CONNECTING -> Log.i(TAG, "STATE_CONNECTING")
-                BluetoothGatt.STATE_DISCONNECTING -> Log.i(TAG, "STATE_DISCONNECTING")
+                BluetoothGatt.STATE_CONNECTING -> {
+                    connectionState = BleConnectionState.CONNECTING
+                    Log.i(TAG, "STATE_CONNECTING")
+                }
+
+                BluetoothGatt.STATE_DISCONNECTING -> {
+                    connectionState = BleConnectionState.DISCONNECTING
+                    Log.i(TAG, "STATE_DISCONNECTING")
+                }
+
                 BluetoothGatt.STATE_CONNECTED -> {
+                    connectionState = BleConnectionState.CONNECTED
                     Log.i(TAG, "STATE_CONNECTED")
                     gatt.discoverServices()
                 }
@@ -86,10 +115,13 @@ class WheelConnection(
                     veteranWheel = null
 
                     if (shouldStayConnected) {
+                        connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
+                        Log.i(TAG, "current _connectionLost.value: ${_connectionLost.value}")
                         _connectionLost.value = true
                         Log.i(TAG, "Attempt to reconnect")
                         gatt.connect()
                     } else {
+                        connectionState = BleConnectionState.DISCONNECTED
                         bleGatt = null
                         notificationChar = null
                         wheelData.clear()

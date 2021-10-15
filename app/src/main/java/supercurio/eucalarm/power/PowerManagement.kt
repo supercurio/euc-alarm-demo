@@ -12,7 +12,7 @@ class PowerManagement(context: Context) {
     private val activeWakelocks = mutableMapOf<String, PowerManager.WakeLock>()
 
     @SuppressLint("WakelockTimeout")
-    fun addLock(tag: String) {
+    fun getLock(tag: String) {
         // skip creating a wakelock already existing
         if (activeWakelocks.contains(tag)) return
 
