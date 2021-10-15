@@ -235,13 +235,13 @@ class AlertFeedback(
         vibrate()
     }
 
-    private fun vibrate() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(currentVibrationPattern, 0))
-        } else {
-            vibrator.vibrate(currentVibrationPattern, 0)
-        }
+    private fun vibrate() = currentVibrationPattern?.let { pattern ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        else
+            vibrator.vibrate(pattern, 0)
     }
+
 
     private fun stopVibration() {
         currentVibrationPattern = null
