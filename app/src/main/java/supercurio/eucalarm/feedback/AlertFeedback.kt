@@ -1,6 +1,9 @@
 package supercurio.eucalarm.feedback
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.*
 import android.os.Build
@@ -28,7 +31,6 @@ class AlertFeedback(
      *  with lowest-latency parameters
      */
 
-
     private lateinit var audioManager: AudioManager
     private lateinit var vibrator: Vibrator
     private lateinit var alertTrack: AudioTrack
@@ -36,6 +38,8 @@ class AlertFeedback(
 
     private var setupComplete = false
     private var isPlaying = false
+
+    private var currentVibrationPattern: LongArray? = null
 
     fun setup(context: Context, scope: CoroutineScope) {
         Log.i(TAG, "Setup instance $instance")
@@ -57,6 +61,11 @@ class AlertFeedback(
         scope.launch {
             wheelConnection.connectionLost.collect { onConnectionLoss(it) }
         }
+
+        // receive screen off events
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        context.registerReceiver(screenOffReceiver, filter)
+
         setupComplete = true
     }
 
@@ -66,12 +75,7 @@ class AlertFeedback(
 
         requestAudioFocus()
 
-        if (VIBRATE)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(alertVibrationPattern, 0))
-            } else {
-                vibrator.vibrate(alertVibrationPattern, 0)
-            }
+        if (VIBRATE) vibratePattern(alertVibrationPattern)
 
         alertTrack.stop()
         alertTrack.setLoopPoints(0, BUFFER_FRAMES, -1)
@@ -82,7 +86,7 @@ class AlertFeedback(
         if (!setupComplete) return
         releaseAudioFocus()
 
-        if (VIBRATE) vibrator.cancel()
+        if (VIBRATE) stopVibration()
         alertTrack.pause()
         isPlaying = false
     }
@@ -220,15 +224,28 @@ class AlertFeedback(
 
     private fun onConnectionLoss(status: Boolean) {
         Log.i(TAG, "onConnectionLoss: $status")
-        if (status) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(connectionLossPattern, 0))
-            } else {
-                vibrator.vibrate(connectionLossPattern, 0)
-            }
+        if (status)
+            vibratePattern(connectionLossPattern)
+        else
+            stopVibration()
+    }
+
+    private fun vibratePattern(pattern: LongArray) {
+        currentVibrationPattern = pattern
+        vibrate()
+    }
+
+    private fun vibrate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createWaveform(currentVibrationPattern, 0))
         } else {
-            vibrator.cancel()
+            vibrator.vibrate(currentVibrationPattern, 0)
         }
+    }
+
+    private fun stopVibration() {
+        currentVibrationPattern = null
+        vibrator.cancel()
     }
 
     private fun stuff(context: Context) {
@@ -276,6 +293,13 @@ class AlertFeedback(
         }
 
         return buf
+    }
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            Log.i(TAG, "Screen turned off, resume active vibration")
+            vibrate()
+        }
     }
 
     private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
