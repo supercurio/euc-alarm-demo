@@ -19,10 +19,11 @@ class WheelConnection(
     private val wheelData: WheelDataInterface,
     private val powerManagement: PowerManagement
 ) {
-    var connectionState = BleConnectionState.UNKNOWN
+    private var connectionState = BleConnectionState.UNKNOWN
         set(value) {
             Log.i(TAG, "ConnectionState change: $value")
             field = value
+            _connectionStateFlow.value = value
         }
 
     private var shouldStayConnected = false
@@ -33,20 +34,16 @@ class WheelConnection(
     private var veteranWheel: VeteranWheel? = null
     private var deviceFound: DeviceFound? = null
 
+    val gatt get() = _gatt
+    val advertisement get() = deviceFound?.scanRecord
+    val device get() = _gatt?.device
+
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
-    private val _connectionLost = MutableStateFlow(false)
-
     val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
-    val connectionLost = _connectionLost.asStateFlow()
+    private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNKNOWN)
+    val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
-    val bleConnectionReady = MutableStateFlow(false)
-
-    val gatt get() = _gatt
-
-    val advertisement get() = deviceFound?.scanRecord
-
-    val device get() = _gatt?.device
 
     fun connectDevice(context: Context, deviceFound: DeviceFound) {
         this.deviceFound = deviceFound
@@ -81,6 +78,9 @@ class WheelConnection(
     }
 
     fun disconnectDevice() {
+        if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
+            connectionState = BleConnectionState.DISCONNECTED
+
         shouldStayConnected = false
         powerManagement.removeLock(TAG)
         notificationChar?.apply { gatt?.let { setNotification(it, false) } }
@@ -99,30 +99,27 @@ class WheelConnection(
             when (newState) {
                 BluetoothGatt.STATE_CONNECTING -> {
                     connectionState = BleConnectionState.CONNECTING
-                    Log.i(TAG, "STATE_CONNECTING")
+                    Log.i(TAG, "onConnectionStateChange: STATE_CONNECTING")
                 }
 
                 BluetoothGatt.STATE_DISCONNECTING -> {
                     connectionState = BleConnectionState.DISCONNECTING
-                    Log.i(TAG, "STATE_DISCONNECTING")
+                    Log.i(TAG, "onConnectionStateChange: STATE_DISCONNECTING")
                 }
 
                 BluetoothGatt.STATE_CONNECTED -> {
                     connectionState = BleConnectionState.CONNECTED
-                    Log.i(TAG, "STATE_CONNECTED")
+                    Log.i(TAG, "onConnectionStateChange: STATE_CONNECTED")
                     gatt.discoverServices()
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
-                    Log.i(TAG, "STATE_DISCONNECTED")
-                    bleConnectionReady.value = false
+                    Log.i(TAG, "onConnectionStateChange: STATE_DISCONNECTED")
 
                     gotwayWheel = null
                     veteranWheel = null
 
                     if (shouldStayConnected) {
                         connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
-                        Log.i(TAG, "current _connectionLost.value: ${_connectionLost.value}")
-                        _connectionLost.value = true
                         Log.i(TAG, "Attempt to reconnect")
                         gatt.connect()
                     } else {
@@ -141,8 +138,6 @@ class WheelConnection(
             veteranWheel = VeteranWheel(wheelData)
             setupGotwayType()
             connectionState = BleConnectionState.CONNECTED_READY
-            bleConnectionReady.value = true
-            _connectionLost.value = false
         }
 
         var id = 0L

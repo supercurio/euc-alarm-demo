@@ -187,19 +187,19 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            val bleConnectionReady by wheelConnection.bleConnectionReady.collectAsState()
-            if (bleConnectionReady) {
+            val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
+            if (bleConnectionState.canDisconnect) {
                 Button(onClick = {
                     wheelConnection.disconnectDevice()
                 }) { Text("Disconnect from ${wheelConnection.device?.name}") }
-
-                val recordingState by wheelBleRecorder.isRecording.collectAsState()
-                if (!recordingState)
-                    Button(onClick = { record() }) { Text("Record") }
-                else
-                    Button(onClick = { stopRecording() }) { Text("Stop recording") }
-
             }
+
+            val recordingState by wheelBleRecorder.isRecording.collectAsState()
+            if (bleConnectionState == BleConnectionState.CONNECTED_READY && !recordingState)
+                Button(onClick = { record() }) { Text("Record") }
+            if (recordingState)
+                Button(onClick = { stopRecording() }) { Text("Stop recording") }
+
 
             val df = DecimalFormat("#.###")
             wheelData.voltageFlow.collectAsState().value?.let {

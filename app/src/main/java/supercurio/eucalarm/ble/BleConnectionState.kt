@@ -1,12 +1,28 @@
 package supercurio.eucalarm.ble
 
-enum class BleConnectionState {
-    UNKNOWN,
-    DISCONNECTED,
-    DISCONNECTING,
-    SYSTEM_ALREADY_CONNECTED,
-    CONNECTING,
-    DISCONNECTED_RECONNECTING,
-    CONNECTED,
-    CONNECTED_READY,
+enum class BleConnectionState(val canDisconnect: Boolean) {
+    UNKNOWN(
+        canDisconnect = false
+    ),
+    DISCONNECTED(
+        canDisconnect = false
+    ),
+    DISCONNECTING(
+        canDisconnect = false
+    ),
+    SYSTEM_ALREADY_CONNECTED(
+        canDisconnect = false
+    ),
+    CONNECTING(
+        canDisconnect = true
+    ),
+    DISCONNECTED_RECONNECTING(
+        canDisconnect = true
+    ),
+    CONNECTED(
+        canDisconnect = true
+    ),
+    CONNECTED_READY(
+        canDisconnect = true
+    ),
 }

@@ -14,6 +14,7 @@ import androidx.core.content.getSystemService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import kotlin.math.atan
@@ -27,8 +28,8 @@ class AlertFeedback(
 
     /*
      * TODO:
-     *  Listen to changes in audio output configuration and reconfigure the AudioTrack
-     *  with lowest-latency parameters
+     *  - Listen to changes in audio output configuration and reconfigure the AudioTrack
+     *    with lowest-latency parameters
      */
 
     private lateinit var audioManager: AudioManager
@@ -37,6 +38,7 @@ class AlertFeedback(
     private lateinit var keepAliveTrack: AudioTrack
 
     private var setupComplete = false
+    private var tracksRunning = false
     private var isPlaying = false
 
     private var currentVibrationPattern: LongArray? = null
@@ -46,20 +48,31 @@ class AlertFeedback(
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
 
-        keepAliveTrack = setupKeepAliveTrack()
-        alertTrack = setupAlertTrack()
-
         scope.launch {
             wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
                     true -> play()
-                    false -> stop()
+                    false -> stopAlert()
                 }
             }
         }
 
         scope.launch {
-            wheelConnection.connectionLost.collect { onConnectionLoss(it) }
+            wheelConnection.connectionStateFlow.collect { state ->
+                // Handle connection loss
+                val connectionLoss = state == BleConnectionState.DISCONNECTED_RECONNECTING
+                if (connectionLoss) stopAlert()
+                onConnectionLoss(connectionLoss)
+
+                // Run Audio Tracks only if we should be connected to the wheel
+                when (state) {
+                    BleConnectionState.CONNECTED,
+                    BleConnectionState.CONNECTED_READY,
+                    BleConnectionState.CONNECTING,
+                    BleConnectionState.DISCONNECTED_RECONNECTING -> runTracks()
+                    else -> stopTracks()
+                }
+            }
         }
 
         // receive screen off events
@@ -69,8 +82,37 @@ class AlertFeedback(
         setupComplete = true
     }
 
+    private fun runTracks() {
+        if (tracksRunning) return
+        tracksRunning = true
+
+        keepAliveTrack = setupKeepAliveTrack()
+        alertTrack = setupAlertTrack()
+    }
+
+    private fun stopTracks() {
+        if (!tracksRunning) return
+        tracksRunning = false
+
+        stopAlert()
+
+        alertTrack.pause()
+        keepAliveTrack.pause()
+
+        alertTrack.flush()
+        keepAliveTrack.flush()
+
+        alertTrack.stop()
+        keepAliveTrack.stop()
+
+        alertTrack.release()
+        keepAliveTrack.release()
+
+    }
+
     fun play() {
         if (!setupComplete) return
+        if (!tracksRunning) return
         isPlaying = true
 
         requestAudioFocus()
@@ -82,8 +124,9 @@ class AlertFeedback(
         alertTrack.play()
     }
 
-    fun stop() {
+    fun stopAlert() {
         if (!setupComplete) return
+        if (!tracksRunning) return
         releaseAudioFocus()
 
         if (VIBRATE) stopVibration()
@@ -93,22 +136,12 @@ class AlertFeedback(
 
     fun toggle() {
         if (!setupComplete) return
-        if (!isPlaying) play() else stop()
+        if (!isPlaying) play() else stopAlert()
     }
 
     fun shutdown() {
         Log.i(TAG, "Shutdown")
-        stop()
-        keepAliveTrack.pause()
-
-        alertTrack.flush()
-        keepAliveTrack.flush()
-
-        alertTrack.stop()
-        keepAliveTrack.stop()
-
-        alertTrack.release()
-        keepAliveTrack.release()
+        stopTracks()
     }
 
     /**
@@ -244,8 +277,10 @@ class AlertFeedback(
 
 
     private fun stopVibration() {
-        currentVibrationPattern = null
-        vibrator.cancel()
+        if (currentVibrationPattern != null) {
+            currentVibrationPattern = null
+            vibrator.cancel()
+        }
     }
 
     private fun stuff(context: Context) {
