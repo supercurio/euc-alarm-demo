@@ -54,21 +54,22 @@ class MainActivity : ComponentActivity() {
     private lateinit var alert: AlertFeedback
     private lateinit var wheelBleRecorder: WheelBleRecorder
     private lateinit var simulator: WheelBleSimulator
+    private lateinit var player: WheelBlePlayer
 
     private lateinit var findWheel: FindWheel
 
-    private var player: WheelBlePlayer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
-
         AppService.enable(applicationContext, true)
+
+        if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
 
         powerManagement = PowerManagement.getInstance(applicationContext)
         wheelConnection = WheelConnection.getInstance(wheelData, powerManagement)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
+        player = WheelBlePlayer()
 
         super.onCreate(savedInstanceState)
         setContent {
@@ -76,6 +77,10 @@ class MainActivity : ComponentActivity() {
         }
 
         findWheel = FindWheel(applicationContext)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
     }
 
     override fun onDestroy() {
@@ -152,17 +157,13 @@ class MainActivity : ComponentActivity() {
             Button(onClick = { manualStop() }) { Text("Stop app") }
 
             Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
-            var playingState by remember { mutableStateOf(false) }
+
+
+            val playingState by player.playingState.collectAsState()
             if (!playingState)
-                Button(onClick = {
-                    playLastRecording()
-                    playingState = true
-                }) { Text("Play last recording") }
+                Button(onClick = { playLastRecording() }) { Text("Play last recording") }
             else
-                Button(onClick = {
-                    playingState = false
-                    player?.stop()
-                }) { Text("Stop player") }
+                Button(onClick = { player.stop() }) { Text("Stop player") }
 
             var simulationState by remember { mutableStateOf(false) }
             if (!simulationState)
@@ -172,7 +173,7 @@ class MainActivity : ComponentActivity() {
                 }) { Text("Simulate last recording") }
             else
                 Button(onClick = {
-                    simulator?.stop()
+                    simulator.stop()
                     simulationState = false
                 }) { Text("Stop simulation") }
 
@@ -280,12 +281,9 @@ class MainActivity : ComponentActivity() {
 
     private fun playLastRecording() {
         val recording = RecordingProvider.getLastRecordingOrSample(applicationContext)
-
-        player = WheelBlePlayer(recording)
-
         activityScope.launch {
             // player?.printAsJson()
-            player?.decode(wheelData)
+            player.decode(recording, wheelData)
         }
     }
 

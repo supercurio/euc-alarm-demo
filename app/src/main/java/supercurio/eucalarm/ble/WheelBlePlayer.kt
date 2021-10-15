@@ -3,6 +3,7 @@ package supercurio.eucalarm.ble
 //import com.google.protobuf.util.JsonFormat
 import android.os.SystemClock
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
@@ -10,32 +11,37 @@ import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
 
-class WheelBlePlayer(private val input: RecordingProvider) {
+class WheelBlePlayer() {
 
-    private val characteristicsKeys = CharacteristicsKeys()
     private var playing = false
+    private var characteristicsKeys: CharacteristicsKeys? = null
+    private var input: RecordingProvider? = null
+    val playingState = MutableStateFlow(false)
 
     fun printAsJson() {
-        Log.i(TAG, "Record size: ${input.available()}")
+        Log.i(TAG, "Record size: ${input?.available()}")
 
 //        while (input.available() > 0) {
 //            Log.i(TAG, JsonFormat.printer().print(MessageType.parseDelimitedFrom(input)))
 //        }
     }
 
-    suspend fun decode(wheelDataStateFlows: WheelDataStateFlows) {
+    suspend fun decode(recording: RecordingProvider, wheelDataStateFlows: WheelDataStateFlows) {
+        input = recording
+        characteristicsKeys = CharacteristicsKeys()
         val gotwayWheel = GotwayWheel(wheelDataStateFlows)
         val veteranWheel = VeteranWheel(wheelDataStateFlows)
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         playing = true
+        playingState.value = true
 
-        while (playing && input.available() > 0) {
-            val message = RecordingMessageType.parseDelimitedFrom(input.inputStream)
+        while (playing && recording.available() > 0) {
+            val message = RecordingMessageType.parseDelimitedFrom(recording.inputStream)
 
             when {
                 message.hasBleDeviceInfo() ->
-                    characteristicsKeys.fromDeviceInfo(message.bleDeviceInfo)
+                    characteristicsKeys?.fromDeviceInfo(message.bleDeviceInfo)
 
                 message.hasGattNotification() -> {
                     val notification = message.gattNotification
@@ -50,11 +56,14 @@ class WheelBlePlayer(private val input: RecordingProvider) {
         }
 
         wheelDataStateFlows.clear()
+        playing = false
+        playingState.value = false
     }
 
     fun stop() {
         playing = false
-        input.close()
+        playingState.value = false
+        input?.close()
     }
 
     companion object {
