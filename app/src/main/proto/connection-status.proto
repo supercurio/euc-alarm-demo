@@ -1,0 +1,15 @@
+syntax = "proto3";
+package supercurio.wheeldata.recording;
+
+option java_multiple_files = true;
+
+enum ConnectionStatus {
+    UNKNOWN = 0;
+    DISCONNECTED = 1;
+    DISCONNECTING = 2;
+    SYSTEM_ALREADY_CONNECTED = 3;
+    CONNECTING = 4;
+    DISCONNECTED_RECONNECTING = 5;
+    CONNECTED = 6;
+    CONNECTED_READY = 7;
+}
