@@ -40,7 +40,8 @@ class WheelConnection(
 
     val gatt get() = _gatt
     val advertisement get() = deviceFound?.scanRecord
-    val device get() = _currentDevice
+    private val deviceNames = mutableMapOf<String, String>()
+    val deviceName get() = _currentDevice?.name ?: deviceNames[_currentDevice?.address] ?: "Unknown"
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -97,6 +98,7 @@ class WheelConnection(
     private fun doConnect(context: Context, device: BluetoothDevice) {
         _gatt = device.connectGatt(context, false, gattCallback)
         _currentDevice = device
+        rememberDeviceName(device)
     }
 
     fun disconnectDevice(context: Context) {
@@ -109,6 +111,7 @@ class WheelConnection(
         }
 
         shouldStayConnected = false
+        deviceNames.clear()
         powerManagement.removeLock(TAG)
         notificationChar?.apply { gatt?.let { setNotification(it, false) } }
         _gatt?.disconnect()
@@ -237,6 +240,12 @@ class WheelConnection(
         else
             BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
         gatt.writeDescriptor(desc)
+    }
+
+    private fun rememberDeviceName(bluetoothDevice: BluetoothDevice) {
+        bluetoothDevice.name?.let { name ->
+            deviceNames[bluetoothDevice.address] = name
+        }
     }
 
     companion object {

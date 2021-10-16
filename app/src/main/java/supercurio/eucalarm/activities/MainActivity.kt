@@ -191,7 +191,7 @@ class MainActivity : ComponentActivity() {
             if (bleConnectionState.canDisconnect) {
                 Button(onClick = {
                     wheelConnection.disconnectDevice(applicationContext)
-                }) { Text("Disconnect from ${wheelConnection.device?.name}") }
+                }) { Text("Disconnect from ${wheelConnection.deviceName}") }
             }
 
             val recordingState by wheelBleRecorder.isRecording.collectAsState()
