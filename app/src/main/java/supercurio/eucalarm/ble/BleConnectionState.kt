@@ -36,4 +36,8 @@ enum class BleConnectionState(val canDisconnect: Boolean) {
     CONNECTED_READY(
         canDisconnect = true
     ),
+
+    REPLAY(
+        canDisconnect = false
+    )
 }

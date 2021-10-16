@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
-        player = WheelBlePlayer()
+        player = WheelBlePlayer(wheelConnection)
 
         super.onCreate(savedInstanceState)
         setContent {
@@ -159,24 +159,26 @@ class MainActivity : ComponentActivity() {
 
             Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
 
+            val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
+            if (!bleConnectionState.canDisconnect) {
+                val playingState by player.playingState.collectAsState()
+                if (!playingState)
+                    Button(onClick = { playLastRecording() }) { Text("Play last recording") }
+                else
+                    Button(onClick = { player.stop() }) { Text("Stop player") }
 
-            val playingState by player.playingState.collectAsState()
-            if (!playingState)
-                Button(onClick = { playLastRecording() }) { Text("Play last recording") }
-            else
-                Button(onClick = { player.stop() }) { Text("Stop player") }
-
-            var simulationState by remember { mutableStateOf(false) }
-            if (!simulationState)
-                Button(onClick = {
-                    simulateLastRecording()
-                    simulationState = true
-                }) { Text("Simulate last recording") }
-            else
-                Button(onClick = {
-                    simulator.stop()
-                    simulationState = false
-                }) { Text("Stop simulation") }
+                var simulationState by remember { mutableStateOf(false) }
+                if (!simulationState)
+                    Button(onClick = {
+                        simulateLastRecording()
+                        simulationState = true
+                    }) { Text("Simulate last recording") }
+                else
+                    Button(onClick = {
+                        simulator.stop()
+                        simulationState = false
+                    }) { Text("Stop simulation") }
+            }
 
             findWheel.foundWheel.collectAsState().value?.let {
                 Text(
@@ -187,7 +189,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
             if (bleConnectionState.canDisconnect) {
                 Button(onClick = {
                     wheelConnection.disconnectDevice(applicationContext)
@@ -284,7 +285,7 @@ class MainActivity : ComponentActivity() {
         val recording = RecordingProvider.getLastRecordingOrSample(applicationContext)
         activityScope.launch {
             // player?.printAsJson()
-            player.decode(recording, wheelData)
+            player.replay(recording, wheelData)
         }
     }
 

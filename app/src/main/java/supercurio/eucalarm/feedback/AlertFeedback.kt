@@ -75,6 +75,7 @@ class AlertFeedback(
                 when (state) {
                     BleConnectionState.CONNECTED,
                     BleConnectionState.CONNECTED_READY,
+                    BleConnectionState.REPLAY,
                     BleConnectionState.CONNECTING,
                     BleConnectionState.DISCONNECTED_RECONNECTING -> runTracks()
                     else -> stopTracks()

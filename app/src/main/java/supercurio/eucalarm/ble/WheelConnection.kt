@@ -49,7 +49,6 @@ class WheelConnection(
     private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNKNOWN)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
-
     fun connectDevice(context: Context, inputDeviceToConnect: DeviceFound) {
         Log.i(TAG, "connectDevice($inputDeviceToConnect)")
 
@@ -115,6 +114,13 @@ class WheelConnection(
         powerManagement.removeLock(TAG)
         notificationChar?.apply { gatt?.let { setNotification(it, false) } }
         _gatt?.disconnect()
+    }
+
+    fun setReplayState(state: Boolean) {
+        connectionState = if (state)
+            BleConnectionState.REPLAY
+        else
+            BleConnectionState.UNKNOWN
     }
 
     fun shutdown(context: Context) {

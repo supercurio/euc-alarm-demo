@@ -11,7 +11,7 @@ import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
 
-class WheelBlePlayer() {
+class WheelBlePlayer(private val wheelConnection: WheelConnection) {
 
     private var playing = false
     private var characteristicsKeys: CharacteristicsKeys? = null
@@ -26,7 +26,8 @@ class WheelBlePlayer() {
 //        }
     }
 
-    suspend fun decode(recording: RecordingProvider, wheelDataStateFlows: WheelDataStateFlows) {
+    suspend fun replay(recording: RecordingProvider, wheelDataStateFlows: WheelDataStateFlows) {
+        wheelConnection.setReplayState(true)
         input = recording
         characteristicsKeys = CharacteristicsKeys()
         val gotwayWheel = GotwayWheel(wheelDataStateFlows)
@@ -58,6 +59,7 @@ class WheelBlePlayer() {
         wheelDataStateFlows.clear()
         playing = false
         playingState.value = false
+        wheelConnection.setReplayState(false)
     }
 
     fun stop() {
