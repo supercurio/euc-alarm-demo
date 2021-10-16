@@ -190,7 +190,7 @@ class MainActivity : ComponentActivity() {
             val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
             if (bleConnectionState.canDisconnect) {
                 Button(onClick = {
-                    wheelConnection.disconnectDevice()
+                    wheelConnection.disconnectDevice(applicationContext)
                 }) { Text("Disconnect from ${wheelConnection.device?.name}") }
             }
 

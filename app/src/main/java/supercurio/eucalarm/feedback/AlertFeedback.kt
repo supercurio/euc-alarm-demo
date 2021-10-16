@@ -58,9 +58,16 @@ class AlertFeedback(
         }
 
         scope.launch {
+            var previousState = BleConnectionState.UNKNOWN
             wheelConnection.connectionStateFlow.collect { state ->
                 // Handle connection loss
-                val connectionLoss = state == BleConnectionState.DISCONNECTED_RECONNECTING
+                val connectionLoss = when (state) {
+                    BleConnectionState.DISCONNECTED_RECONNECTING -> true
+                    BleConnectionState.CONNECTING ->
+                        previousState == BleConnectionState.DISCONNECTED_RECONNECTING
+                    else -> false
+                }
+                previousState = state
                 if (connectionLoss) stopAlert()
                 onConnectionLoss(connectionLoss)
 

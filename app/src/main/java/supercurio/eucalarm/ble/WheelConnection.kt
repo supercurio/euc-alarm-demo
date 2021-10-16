@@ -1,7 +1,10 @@
 package supercurio.eucalarm.ble
 
 import android.bluetooth.*
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.util.Log
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,6 +32,7 @@ class WheelConnection(
     private var shouldStayConnected = false
 
     private var _gatt: BluetoothGatt? = null
+    private var _currentDevice: BluetoothDevice? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
     private var gotwayWheel: GotwayWheel? = null
     private var veteranWheel: VeteranWheel? = null
@@ -36,7 +40,7 @@ class WheelConnection(
 
     val gatt get() = _gatt
     val advertisement get() = deviceFound?.scanRecord
-    val device get() = _gatt?.device
+    val device get() = _currentDevice
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -45,21 +49,38 @@ class WheelConnection(
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
 
-    fun connectDevice(context: Context, deviceFound: DeviceFound) {
-        this.deviceFound = deviceFound
-        Log.i(TAG, "connectDevice()")
+    fun connectDevice(context: Context, inputDeviceToConnect: DeviceFound) {
+        Log.i(TAG, "connectDevice($inputDeviceToConnect)")
+
+        // get a fresh BluetoothDevice form the adapter
+        val deviceToConnect = DeviceFound(
+            BluetoothAdapter
+                .getDefaultAdapter()
+                .getRemoteDevice(inputDeviceToConnect.device.address),
+            inputDeviceToConnect.scanRecord
+        )
+
+        this.deviceFound = deviceToConnect
         shouldStayConnected = true
         powerManagement.getLock(TAG)
 
+        if (!btStateChangeReceiver.registered) {
+            context.registerReceiver(
+                btStateChangeReceiver,
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+            )
+            btStateChangeReceiver.registered = true
+        }
+
         val btManager = context.getSystemService<BluetoothManager>()!!
 
-        when (btManager.getConnectionState(deviceFound.device, BluetoothProfile.GATT)) {
+        when (btManager.getConnectionState(deviceToConnect.device, BluetoothProfile.GATT)) {
             // already connected: connect if the connection is not already ready and we're not
             // trying to reconnect already
             BluetoothGatt.STATE_CONNECTED -> {
                 if (_gatt == null) {
                     connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
-                    connectToDeviceFound(context, deviceFound.device)
+                    doConnect(context, deviceToConnect.device)
                 }
             }
 
@@ -68,18 +89,24 @@ class WheelConnection(
             // disconnecting or disconnected, connect again
             BluetoothGatt.STATE_DISCONNECTING, BluetoothGatt.STATE_DISCONNECTED -> {
                 connectionState = BleConnectionState.CONNECTING
-                connectToDeviceFound(context, deviceFound.device)
+                doConnect(context, deviceToConnect.device)
             }
         }
     }
 
-    private fun connectToDeviceFound(context: Context, device: BluetoothDevice) {
+    private fun doConnect(context: Context, device: BluetoothDevice) {
         _gatt = device.connectGatt(context, false, gattCallback)
+        _currentDevice = device
     }
 
-    fun disconnectDevice() {
+    fun disconnectDevice(context: Context) {
         if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
             connectionState = BleConnectionState.DISCONNECTED
+
+        if (btStateChangeReceiver.registered) {
+            btStateChangeReceiver.registered = false
+            context.unregisterReceiver(btStateChangeReceiver)
+        }
 
         shouldStayConnected = false
         powerManagement.removeLock(TAG)
@@ -87,9 +114,9 @@ class WheelConnection(
         _gatt?.disconnect()
     }
 
-    fun shutdown() {
+    fun shutdown(context: Context) {
         Log.i(TAG, "Shutdown")
-        disconnectDevice()
+        disconnectDevice(context)
         instance = null
     }
 
@@ -114,20 +141,7 @@ class WheelConnection(
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
                     Log.i(TAG, "onConnectionStateChange: STATE_DISCONNECTED")
-
-                    gotwayWheel = null
-                    veteranWheel = null
-
-                    if (shouldStayConnected) {
-                        connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
-                        Log.i(TAG, "Attempt to reconnect")
-                        gatt.connect()
-                    } else {
-                        connectionState = BleConnectionState.DISCONNECTED
-                        _gatt = null
-                        notificationChar = null
-                        wheelData.clear()
-                    }
+                    gotDisconnected(gatt)
                 }
             }
         }
@@ -167,6 +181,49 @@ class WheelConnection(
             )?.apply {
                 Log.i(TAG, "char uuid: ${this.uuid}")
                 setNotification(gatt, true)
+            }
+        }
+    }
+
+    private fun gotDisconnected(gatt: BluetoothGatt? = null) {
+        gotwayWheel = null
+        veteranWheel = null
+        wheelData.clear()
+
+        if (shouldStayConnected) {
+            connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
+            gatt?.let {
+                Log.i(TAG, "Attempt to reconnect")
+                it.connect()
+            }
+        } else {
+            connectionState = BleConnectionState.DISCONNECTED
+            _gatt = null
+            _currentDevice = null
+            notificationChar = null
+            wheelData.clear()
+        }
+    }
+
+    private val btStateChangeReceiver = object : BroadcastReceiver() {
+        var registered = false
+        override fun onReceive(context: Context, intent: Intent) {
+
+            when (intent.extras?.get(BluetoothAdapter.EXTRA_STATE)) {
+                BluetoothAdapter.STATE_OFF -> {
+                    Log.i(TAG, "Bluetooth adapter off")
+                    connectionState = BleConnectionState.BLUETOOTH_OFF
+                    _gatt?.disconnect()
+                    _gatt = null
+                    gotDisconnected()
+                }
+
+                BluetoothAdapter.STATE_ON -> {
+                    deviceFound?.let {
+                        Log.i(TAG, "Bluetooth adapter on, try to reconnect to previous device")
+                        connectDevice(context, it)
+                    }
+                }
             }
         }
     }

@@ -4,7 +4,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Binder
-import android.util.Log
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -55,7 +54,7 @@ class AppService : Service() {
 
     override fun onDestroy() {
         wheelBleRecorder.shutDown()
-        wheelConnection.shutdown()
+        wheelConnection.shutdown(applicationContext)
         simulator.shutdown()
         alert.shutdown()
         powerManagement.releaseAll()
