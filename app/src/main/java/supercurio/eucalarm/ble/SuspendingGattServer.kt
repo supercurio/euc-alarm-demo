@@ -26,6 +26,33 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
             callback.onConnectionStateChange(device, status, newState)
         }
 
+        override fun onCharacteristicReadRequest(
+            device: BluetoothDevice?,
+            requestId: Int,
+            offset: Int,
+            characteristic: BluetoothGattCharacteristic?
+        ) = callback.onCharacteristicReadRequest(device, requestId, offset, characteristic)
+
+        override fun onCharacteristicWriteRequest(
+            device: BluetoothDevice?,
+            requestId: Int,
+            characteristic: BluetoothGattCharacteristic?,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray?
+        ) {
+            callback.onCharacteristicWriteRequest(
+                device,
+                requestId,
+                characteristic,
+                preparedWrite,
+                responseNeeded,
+                offset,
+                value
+            )
+        }
+
         override fun onDescriptorWriteRequest(
             device: BluetoothDevice?,
             requestId: Int,
@@ -81,8 +108,11 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
         server.notifyCharacteristicChanged(device, characteristic, confirm)
     }
 
+    fun sendSuccess(device: BluetoothDevice?, requestId: Int) =
+        server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+
     fun sendResponse(
-        device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: Nothing?
+        device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?
     ) = server.sendResponse(device, requestId, status, offset, value)
 
     fun clearServices() = server.clearServices()

@@ -196,6 +196,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             value: ByteArray?
         ) {
             Log.i(TAG, "onCharacteristicWriteRequest")
+            server.sendSuccess(device, requestId)
         }
 
         override fun onCharacteristicReadRequest(
@@ -205,6 +206,16 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             characteristic: BluetoothGattCharacteristic?
         ) {
             Log.i(TAG, "onCharacteristicReadRequest")
+            server.sendSuccess(device, requestId)
+        }
+
+        override fun onDescriptorReadRequest(
+            device: BluetoothDevice?,
+            requestId: Int,
+            offset: Int,
+            descriptor: BluetoothGattDescriptor?
+        ) {
+            server.sendSuccess(device, requestId)
         }
 
         override fun onDescriptorWriteRequest(
@@ -225,8 +236,8 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
                 } catch (t: Throwable) {
                     t.printStackTrace()
                 }
-                server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
             }
+            server.sendSuccess(device, requestId)
         }
     }
 
