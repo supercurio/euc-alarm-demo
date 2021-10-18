@@ -2,6 +2,7 @@ package supercurio.eucalarm.activities
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -26,6 +27,8 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.*
+import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.appstate.ClosedState
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
@@ -33,6 +36,7 @@ import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import supercurio.eucalarm.utils.RecordingProvider
+import supercurio.eucalarm.utils.directBootContext
 import java.text.DecimalFormat
 
 
@@ -49,6 +53,8 @@ class MainActivity : ComponentActivity() {
     private val activityScope = MainScope() + CoroutineName(TAG)
 
     private val wheelData = WheelDataStateFlows.getInstance()
+
+    private lateinit var appStateStore: AppStateStore
     private lateinit var powerManagement: PowerManagement
     private lateinit var wheelConnection: WheelConnection
     private lateinit var alert: AlertFeedback
@@ -60,14 +66,16 @@ class MainActivity : ComponentActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        appStateStore = AppStateStore(applicationContext)
+
         AppService.enable(applicationContext, true)
 
         if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
 
         powerManagement = PowerManagement.getInstance(applicationContext)
-        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement)
+        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement, appStateStore)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
-        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
         player = WheelBlePlayer(wheelConnection)
 
@@ -192,6 +200,7 @@ class MainActivity : ComponentActivity() {
             if (bleConnectionState.canDisconnect) {
                 Button(onClick = {
                     wheelConnection.disconnectDevice(applicationContext)
+                    appStateStore.setState(ClosedState)
                 }) { Text("Disconnect from ${wheelConnection.deviceName}") }
             }
 
@@ -235,7 +244,6 @@ class MainActivity : ComponentActivity() {
                     fontSize = 30.sp,
                 )
             }
-
         }
     }
 
@@ -262,7 +270,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun shareRecording() {
-        val recordingFile = RecordingProvider.getLastRecordingFile(applicationContext) ?: return
+        var recordingFile = RecordingProvider.getLastRecordingFile(
+            applicationContext.directBootContext
+        ) ?: return
+
+        // copy the file to internal storage
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            recordingFile = RecordingProvider.copyToAppStandardStorage(
+                this,
+                recordingFile
+            )
+        }
+
+        Log.i(TAG, "Share file: ${recordingFile.absolutePath}")
 
         val uri = FileProvider.getUriForFile(
             applicationContext,
@@ -296,6 +316,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun manualStop() {
+        appStateStore.setState(ClosedState)
         AppService.enable(applicationContext, false)
         finish()
     }

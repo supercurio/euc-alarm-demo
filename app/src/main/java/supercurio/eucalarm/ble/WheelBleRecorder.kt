@@ -9,16 +9,19 @@ import com.google.protobuf.kotlin.toByteString
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
-import supercurio.eucalarm.service.AppService
-import supercurio.eucalarm.utils.NowAndTimestamp
-import supercurio.eucalarm.utils.RecordingProvider
-import supercurio.eucalarm.utils.TimeUtils
-import supercurio.eucalarm.utils.hasNotify
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
+import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.appstate.ConnectedState
+import supercurio.eucalarm.appstate.RecordingState
+import supercurio.eucalarm.utils.*
 import supercurio.wheeldata.recording.*
 import java.io.BufferedOutputStream
 
-class WheelBleRecorder(private val connection: WheelConnection) {
-
+class WheelBleRecorder(
+    private val connection: WheelConnection,
+    private val appStateStore: AppStateStore
+) {
     private var startTime: NowAndTimestamp? = null
     private var out: BufferedOutputStream? = null
     private var recorderScope: CoroutineScope? = null
@@ -26,16 +29,75 @@ class WheelBleRecorder(private val connection: WheelConnection) {
 
     val isRecording = MutableStateFlow(false)
 
-    fun start(context: Context) {
+    fun start(context: Context, storedDeviceAddr: String? = null) {
+        val currentDeviceAddr = connection.device?.address
+
+        if (storedDeviceAddr != null &&
+            currentDeviceAddr != null &&
+            storedDeviceAddr != currentDeviceAddr
+        ) {
+            Log.i(TAG, "Not recording from $currentDeviceAddr, stored device was $storedDeviceAddr")
+            return
+        }
+
+        recorderScope = (MainScope() + CoroutineName(TAG))
+
+        when (connection.connectionStateFlow.value) {
+            BleConnectionState.CONNECTED_READY -> {
+                Log.i(TAG, "Connection is ready, record")
+                doRecording(context)
+            }
+            else -> recorderScope?.launch {
+                connection.connectionStateFlow
+                    .filter { it == BleConnectionState.CONNECTED_READY }
+                    .take(1)
+                    .collect {
+                        if (storedDeviceAddr == connection.device?.address) {
+                            Log.i(TAG, "Waited for a ready connection, record now")
+                            doRecording(context)
+                        }
+                    }
+            }
+        }
+    }
+
+    fun stop() {
+        out?.flush()
+        out?.close()
+        characteristicsKeys = null
+        out = null
+        connection.device?.address?.let {
+            appStateStore.setState(ConnectedState(it))
+        }
+        isRecording.value = false
+    }
+
+    fun shutDown() {
+        Log.i(TAG, "Shutdown")
+        stop()
+        startTime = null
+        recorderScope?.cancel()
+        recorderScope = null
+        // always re-use the same instance after clearing it
+    }
+
+    private fun doRecording(context: Context) {
+        // save app state if we record and have a connection to a device
+        connection.device?.address?.let { addr ->
+            appStateStore.setState(RecordingState(addr))
+        }
+
         isRecording.value = true
         characteristicsKeys = CharacteristicsKeys()
         startTime = TimeUtils.timestampNow()
-        out = RecordingProvider.generateRecordingFilename(context, connection.gatt?.device?.name)
-            .outputStream()
-            .buffered()
+        out = RecordingProvider.generateRecordingFilename(
+            context.directBootContext,
+            connection.deviceName
+        ).outputStream().buffered()
 
         connection.gatt?.let { gatt ->
             // serves as header
+            Log.i(TAG, "Write device info")
             writeDeviceInfo(
                 deviceAddress = gatt.device.address,
                 deviceName = gatt.device.name ?: "name-missing",
@@ -43,6 +105,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
                 scanRecord = connection.advertisement
             )
 
+            Log.i(TAG, "Write recording info")
             writeRecordingInfo()
 
             // subscribe to each characteristic with notification
@@ -54,30 +117,11 @@ class WheelBleRecorder(private val connection: WheelConnection) {
             }
         }
 
-        val scope = (MainScope() + CoroutineName(TAG)).also { recorderScope = it }
-
-        scope.launch {
+        recorderScope?.launch {
             connection.notifiedCharacteristic.collect { notifiedCharacteristic ->
                 writeNotificationData(notifiedCharacteristic)
             }
         }
-    }
-
-    fun stop() {
-        out?.flush()
-        out?.close()
-        characteristicsKeys = null
-        out = null
-        isRecording.value = false
-    }
-
-    fun shutDown() {
-        Log.i(TAG, "Shutdown")
-        stop()
-        startTime = null
-        recorderScope?.cancel()
-        recorderScope = null
-        // always re-use the same instance after clearing it
     }
 
     private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) =
@@ -156,11 +200,7 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         message.writeDelimitedTo(out)
         out.flush()
 
-//        Log.i(
-//            TAG, JsonFormat.printer()
-//                .includingDefaultValueFields()
-//                .print(message)
-//        )
+        if (WRITES_LOGGING) Log.d(TAG, message.toString())
     }
 
 
@@ -168,7 +208,9 @@ class WheelBleRecorder(private val connection: WheelConnection) {
         private const val TAG = "WheelBleRecorder"
 
         private var instance: WheelBleRecorder? = null
-        fun getInstance(connection: WheelConnection) =
-            instance ?: WheelBleRecorder(connection).also { instance = it }
+        fun getInstance(connection: WheelConnection, appStateStore: AppStateStore) =
+            instance ?: WheelBleRecorder(connection, appStateStore).also { instance = it }
+
+        private const val WRITES_LOGGING = false
     }
 }

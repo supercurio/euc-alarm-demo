@@ -1,0 +1,2 @@
+#!/bin/bash
+adb shell am broadcast -n supercurio.eucalarm/.appstate.ForceCrash

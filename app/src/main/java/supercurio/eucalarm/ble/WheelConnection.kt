@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
+import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
@@ -20,7 +22,8 @@ import java.util.*
 
 class WheelConnection(
     private val wheelData: WheelDataInterface,
-    private val powerManagement: PowerManagement
+    private val powerManagement: PowerManagement,
+    private val appStateStore: AppStateStore,
 ) {
     private var connectionState = BleConnectionState.UNKNOWN
         set(value) {
@@ -29,19 +32,21 @@ class WheelConnection(
             _connectionStateFlow.value = value
         }
 
+    private val findReconnectWheel = FindReconnectWheel(this)
+    private var devicesNamesCache: DevicesNamesCache? = null
+
     private var shouldStayConnected = false
 
     private var _gatt: BluetoothGatt? = null
-    private var _currentDevice: BluetoothDevice? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
     private var gotwayWheel: GotwayWheel? = null
     private var veteranWheel: VeteranWheel? = null
     private var deviceFound: DeviceFound? = null
 
     val gatt get() = _gatt
+    val device get() = _gatt?.device
     val advertisement get() = deviceFound?.scanRecord
-    private val deviceNames = mutableMapOf<String, String>()
-    val deviceName get() = _currentDevice?.name ?: deviceNames[_currentDevice?.address] ?: "Unknown"
+    val deviceName get() = device?.name ?: devicesNamesCache?.get(device?.address)
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -49,8 +54,25 @@ class WheelConnection(
     private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNKNOWN)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
+    fun reconnectDevice(context: Context, deviceAddr: String) {
+        findReconnectWheel.findAndReconnect(context, deviceAddr)
+    }
+
     fun connectDevice(context: Context, inputDeviceToConnect: DeviceFound) {
         Log.i(TAG, "connectDevice($inputDeviceToConnect)")
+        findReconnectWheel.stopLeScan()
+
+        devicesNamesCache = DevicesNamesCache(context)
+
+        // set app state
+        appStateStore.setState(ConnectedState(inputDeviceToConnect.device.address))
+
+        inputDeviceToConnect.scanRecord?.let {
+            devicesNamesCache?.remember(
+                inputDeviceToConnect.device.address,
+                it
+            )
+        }
 
         // get a fresh BluetoothDevice form the adapter
         val deviceToConnect = DeviceFound(
@@ -96,8 +118,7 @@ class WheelConnection(
 
     private fun doConnect(context: Context, device: BluetoothDevice) {
         _gatt = device.connectGatt(context, false, gattCallback)
-        _currentDevice = device
-        rememberDeviceName(device)
+        devicesNamesCache?.remember(device)
     }
 
     fun disconnectDevice(context: Context) {
@@ -109,8 +130,9 @@ class WheelConnection(
             context.unregisterReceiver(btStateChangeReceiver)
         }
 
+        findReconnectWheel.stopLeScan()
+
         shouldStayConnected = false
-        deviceNames.clear()
         powerManagement.removeLock(TAG)
         notificationChar?.apply { gatt?.let { setNotification(it, false) } }
         _gatt?.disconnect()
@@ -208,7 +230,6 @@ class WheelConnection(
         } else {
             connectionState = BleConnectionState.DISCONNECTED
             _gatt = null
-            _currentDevice = null
             notificationChar = null
             wheelData.clear()
         }
@@ -228,9 +249,14 @@ class WheelConnection(
                 }
 
                 BluetoothAdapter.STATE_ON -> {
+
                     deviceFound?.let {
-                        Log.i(TAG, "Bluetooth adapter on, try to reconnect to previous device")
-                        connectDevice(context, it)
+                        val addr = it.device.address
+                        Log.i(
+                            TAG, "Bluetooth adapter on, try to reconnect " +
+                                    "to previous device by scanning for $addr"
+                        )
+                        findReconnectWheel.findAndReconnect(context, addr)
                     }
                 }
             }
@@ -248,19 +274,18 @@ class WheelConnection(
         gatt.writeDescriptor(desc)
     }
 
-    private fun rememberDeviceName(bluetoothDevice: BluetoothDevice) {
-        bluetoothDevice.name?.let { name ->
-            deviceNames[bluetoothDevice.address] = name
-        }
-    }
-
     companion object {
         private const val TAG = "WheelConnection"
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
 
         private var instance: WheelConnection? = null
 
-        fun getInstance(wheelData: WheelDataInterface, powerManagement: PowerManagement) =
-            instance ?: WheelConnection(wheelData, powerManagement).also { instance = it }
+        fun getInstance(
+            wheelData: WheelDataInterface,
+            powerManagement: PowerManagement,
+            appStateStore: AppStateStore
+        ) = instance ?: WheelConnection(wheelData, powerManagement, appStateStore).also {
+            instance = it
+        }
     }
 }

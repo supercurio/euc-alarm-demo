@@ -1,8 +1,6 @@
 package supercurio.eucalarm.ble
 
-//import com.google.protobuf.util.JsonFormat
 import android.os.SystemClock
-import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
@@ -17,14 +15,6 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
     private var characteristicsKeys: CharacteristicsKeys? = null
     private var input: RecordingProvider? = null
     val playingState = MutableStateFlow(false)
-
-    fun printAsJson() {
-        Log.i(TAG, "Record size: ${input?.available()}")
-
-//        while (input.available() > 0) {
-//            Log.i(TAG, JsonFormat.printer().print(MessageType.parseDelimitedFrom(input)))
-//        }
-    }
 
     suspend fun replay(recording: RecordingProvider, wheelDataStateFlows: WheelDataStateFlows) {
         wheelConnection.setReplayState(true)

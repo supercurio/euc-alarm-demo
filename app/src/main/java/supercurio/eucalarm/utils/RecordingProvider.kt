@@ -1,6 +1,7 @@
 package supercurio.eucalarm.utils
 
 import android.content.Context
+import android.util.Log
 import supercurio.eucalarm.R
 import java.io.File
 import java.io.InputStream
@@ -45,6 +46,16 @@ class RecordingProvider(
             return filesList?.first()
         }
 
+        fun copyToAppStandardStorage(context: Context, file: File): File {
+            val outFile = File(File(context.filesDir, RECORDINGS_DIR), file.name)
+            try {
+                file.copyTo(outFile)
+            } catch (t: Throwable) {
+                t.printStackTrace()
+            }
+            return outFile
+        }
+
         fun generateRecordingFilename(context: Context, deviceName: String?): File {
             val destDir = File(context.filesDir, RECORDINGS_DIR)
             destDir.mkdirs()
@@ -54,7 +65,9 @@ class RecordingProvider(
             val strDate: String = dateFormat.format(date)
 
             val name = deviceName ?: "no-name"
-            return File(destDir, "$name-$strDate.bwr")
+            val filename = "$name-$strDate.bwr"
+            Log.i(TAG, "Generated recording filename: $filename")
+            return File(destDir, filename)
         }
 
         fun generateImportedFilename(context: Context): File {
@@ -65,6 +78,7 @@ class RecordingProvider(
         }
 
         private const val RECORDINGS_DIR = "recordings"
+        private const val TAG = "RecordingProvider"
 
     }
 }

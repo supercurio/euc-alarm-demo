@@ -46,7 +46,18 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <service android:name=".service.AppService" />
+        <receiver
+            android:name=".appstate.BootReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".service.AppService"
+            android:directBootAware="true" />
 
     </application>
 
@@ -63,5 +74,6 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
 </manifest>

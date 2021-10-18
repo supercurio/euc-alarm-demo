@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="supercurio.eucalarm">
+
+    <application>
+        <receiver
+            android:name=".appstate.ForceCrash"
+            android:enabled="true"
+            android:exported="true" />
+    </application>
+
+</manifest>

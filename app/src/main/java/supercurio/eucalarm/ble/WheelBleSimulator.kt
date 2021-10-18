@@ -5,7 +5,10 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
@@ -29,13 +32,23 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private lateinit var input: RecordingProvider
 
     private var characteristicsKeys: CharacteristicsKeys? = null
-    private var originalBtName: String? = null
     private var advertiser: BluetoothLeAdvertiser? = null
     private var connectedDevice: BluetoothDevice? = null
     private var advertisement: BleAdvertisement? = null
     private var doReplay = false
 
     fun start(context: Context, recordingProvider: RecordingProvider) {
+
+        val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                Log.i(TAG, "Intent: ${intent.action}")
+            }
+
+        }
+        context.registerReceiver(receiver, intentFilter)
+
+
         powerManagement.getLock(TAG)
         input = recordingProvider
 
@@ -45,8 +58,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         readDeviceInfo().let { deviceInfo ->
             characteristicsKeys?.fromDeviceInfo(deviceInfo)
 
-            originalBtName = btManager.adapter.name
-            btManager.adapter.name = deviceInfo.name
+            Log.i(TAG, "Device Info: $deviceInfo")
 
             deviceInfo.gattServicesList.forEach { service ->
                 Log.i(TAG, "Found service: ${service.uuid} type: ${service.type}")
@@ -250,7 +262,6 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         server.clearServices()
         server.close()
         characteristicsKeys = null
-        originalBtName?.let { btManager.adapter.name = it }
         powerManagement.removeLock(TAG)
     }
 

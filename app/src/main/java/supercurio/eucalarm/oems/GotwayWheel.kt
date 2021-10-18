@@ -1,5 +1,6 @@
 package supercurio.eucalarm.oems
 
+import android.util.Log
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.DataParsing.capSize
 import supercurio.eucalarm.utils.showBuffer
@@ -34,7 +35,11 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
             }
 
             frame.clear()
-            frame.put(bufferList.subList(0, 24).toByteArray())
+            try {
+                frame.put(bufferList.subList(0, 24).toByteArray())
+            } catch (t: Throwable) {
+                Log.e(TAG, "Invalid buffer for frame: ${bufferList.toHexString()}")
+            }
 
             if (FRAME_LOGGING) {
                 val frameType = if (frame[18] == 0.toByte()) "A" else "B"

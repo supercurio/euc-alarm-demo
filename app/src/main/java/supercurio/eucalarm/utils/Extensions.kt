@@ -1,11 +1,11 @@
 package supercurio.eucalarm.utils
 
-//import com.google.protobuf.util.JsonFormat
 import android.bluetooth.BluetoothGattCharacteristic
+import android.content.Context
+import android.os.Build
 
 fun BluetoothGattCharacteristic.hasNotify() =
     properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
-
 
 fun ByteArray.toHexString() = asList().toHexString()
 fun List<Byte>.toHexString() = map { String.format("%02x", it) }
@@ -21,3 +21,8 @@ fun ByteArray.showBuffer(): String {
     sb.append(joinToString(" ") { String.format("%02x", it) })
     return sb.toString()
 }
+
+val Context.directBootContext: Context
+    get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        createDeviceProtectedStorageContext()
+    } else this

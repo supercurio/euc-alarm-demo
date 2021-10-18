@@ -4,12 +4,16 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Binder
+import android.util.Log
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.plus
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
+import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.appstate.ConnectedState
+import supercurio.eucalarm.appstate.RecordingState
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
@@ -23,6 +27,7 @@ class AppService : Service() {
     override fun onBind(intent: Intent): Binder? = null
 
     private val wheelData = WheelDataStateFlows.getInstance()
+    private lateinit var appStateStore: AppStateStore
     private lateinit var powerManagement: PowerManagement
     private lateinit var wheelConnection: WheelConnection
     private lateinit var alert: AlertFeedback
@@ -30,17 +35,21 @@ class AppService : Service() {
     private lateinit var simulator: WheelBleSimulator
 
     override fun onCreate() {
+        isRunning = true
         super.onCreate()
+        Log.i(TAG, "onCreate")
+        appStateStore = AppStateStore.getInstance(applicationContext)
         powerManagement = PowerManagement.getInstance(applicationContext)
-        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement)
+        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement, appStateStore)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         alert.setup(applicationContext, serviceScope)
 
-        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection)
+        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(TAG, "onStartCommand")
 
         val notif = Notifications.foregroundServiceNotificationBuilder(
             applicationContext,
@@ -49,10 +58,26 @@ class AppService : Service() {
 
         startForeground(NOTIF_ID, notif)
 
+        // restore app state
+        when (val state = appStateStore.loadState()) {
+            is ConnectedState -> {
+                Log.i(TAG, "Reconnect device")
+                wheelConnection.reconnectDevice(applicationContext, state.deviceAddr)
+            }
+
+            is RecordingState -> {
+                Log.i(TAG, "Reconnect device and resume recording")
+                wheelConnection.reconnectDevice(applicationContext, state.deviceAddr)
+                wheelBleRecorder.start(applicationContext, state.deviceAddr)
+            }
+        }
+
         return START_STICKY
     }
 
     override fun onDestroy() {
+        Log.i(TAG, "onDestroy")
+        isRunning = false
         wheelBleRecorder.shutDown()
         wheelConnection.shutdown(applicationContext)
         simulator.shutdown()
