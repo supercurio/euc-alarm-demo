@@ -35,7 +35,6 @@ class AppService : Service() {
     private lateinit var simulator: WheelBleSimulator
 
     override fun onCreate() {
-        isRunning = true
         super.onCreate()
         Log.i(TAG, "onCreate")
         appStateStore = AppStateStore.getInstance(applicationContext)
@@ -46,10 +45,13 @@ class AppService : Service() {
 
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
+
+        appStateStore.restoreState(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand")
+        isRunning = true
 
         val notif = Notifications.foregroundServiceNotificationBuilder(
             applicationContext,

@@ -35,6 +35,8 @@ class AppStateStore(appContext: Context) {
         val context = appContext.directBootContext
 
         loadState()
+        Log.i(TAG, "Restore state")
+
         when (appState) {
             is ClosedState -> AppService.enable(context, false)
             is ConnectedState -> AppService.enable(context, true)
