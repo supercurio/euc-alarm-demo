@@ -1,8 +1,10 @@
 package supercurio.eucalarm.service
 
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Binder
 import android.util.Log
 import kotlinx.coroutines.CoroutineName
@@ -46,12 +48,13 @@ class AppService : Service() {
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
 
-        appStateStore.restoreState(applicationContext)
+        registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
+        if (!isRunning)
+            appStateStore.restoreState(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand")
-        isRunning = true
 
         val notif = Notifications.foregroundServiceNotificationBuilder(
             applicationContext,
@@ -80,6 +83,9 @@ class AppService : Service() {
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
         isRunning = false
+
+        unregisterReceiver(shutdownReceiver)
+
         wheelBleRecorder.shutDown()
         wheelConnection.shutdown(applicationContext)
         simulator.shutdown()
@@ -88,9 +94,18 @@ class AppService : Service() {
         serviceScope.cancel()
     }
 
+
+    private val shutdownReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == STOP_BROADCAST) enable(context, false)
+        }
+    }
+
     companion object {
         private const val TAG = "AppService"
-        private const val NOTIF_ID = 1
+
+        const val NOTIF_ID = 1
+        const val STOP_BROADCAST = "StopAndExitService"
 
         private var isRunning = false
 
@@ -109,6 +124,5 @@ class AppService : Service() {
         }
 
         private fun getIntent(context: Context) = Intent(context, AppService::class.java)
-
     }
 }

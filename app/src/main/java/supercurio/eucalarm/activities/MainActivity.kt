@@ -26,6 +26,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.*
+import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ClosedState
 import supercurio.eucalarm.ble.*
@@ -43,7 +44,6 @@ class MainActivity : ComponentActivity() {
 
     /**
      * TODO:
-     *  * show something that represents the current connection status
      *  * look into Bluetooth connection receiver to sync with EUC World / WheelLog
      *  * find potential Settings-type UI in Compose
      */

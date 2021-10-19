@@ -10,11 +10,11 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import supercurio.eucalarm.activities.MainActivity
+import supercurio.eucalarm.service.AppService
 
 object Notifications {
 
     private const val NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID = "AppService"
-    const val ID_FOREGROUND_SERVICE = 1
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -34,15 +34,28 @@ object Notifications {
 
     fun foregroundServiceNotificationBuilder(context: Context, title: String): Notification {
 
-        val contentIntent = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT
+        val startActivityPi = PendingIntent.getActivity(
+            context, 0, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val stopServicePi = PendingIntent.getBroadcast(
+            context, 0, Intent(AppService.STOP_BROADCAST),
+            PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID)
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle(title)
-            .setContentIntent(contentIntent)
+            .setContentIntent(startActivityPi)
+            .addAction(0, "Stop", stopServicePi)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
+    }
+
+
+    fun updateOngoing(context: Context, title: String) {
+        context.getSystemService<NotificationManager>()!!
+            .notify(AppService.NOTIF_ID, foregroundServiceNotificationBuilder(context, title))
     }
 }
