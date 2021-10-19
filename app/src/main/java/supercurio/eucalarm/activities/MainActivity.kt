@@ -10,18 +10,17 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
@@ -44,7 +43,6 @@ class MainActivity : ComponentActivity() {
 
     /**
      * TODO:
-     *  * a picker for the device connection
      *  * show something that represents the current connection status
      *  * look into Bluetooth connection receiver to sync with EUC World / WheelLog
      *  * find potential Settings-type UI in Compose
@@ -62,7 +60,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var simulator: WheelBleSimulator
     private lateinit var player: WheelBlePlayer
 
-    private lateinit var findWheel: FindWheel
+    private lateinit var findWheels: FindWheels
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,7 +82,7 @@ class MainActivity : ComponentActivity() {
             PermissionsLayout {}
         }
 
-        findWheel = FindWheel(applicationContext)
+        findWheels = FindWheels(applicationContext)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -95,7 +93,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         Log.i(TAG, "onDestroy")
 
-        findWheel.stopLeScan()
+        findWheels.stop()
         player.stop()
         activityScope.cancel()
     }
@@ -153,21 +151,78 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     fun MyLayout() {
 
         Column(modifier = Modifier.padding(16.dp)) {
-            val scanningState by findWheel.isScanning.collectAsState()
-            if (!scanningState)
-                Button(onClick = { findWheel.find() }) { Text("Find Wheel") }
-            else
-                Button(onClick = { findWheel.stopLeScan() }) { Text("Stop Wheel Scan") }
+
+            val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
+            val openDialog = remember { mutableStateOf(false) }
+
+            if (openDialog.value) {
+                fun dismiss() {
+                    Log.i(TAG, "Dismiss")
+                    findWheels.stop()
+                    openDialog.value = false
+                }
+
+                AlertDialog(
+                    onDismissRequest = { dismiss() },
+                    title = { Text(text = "Scanning for wheels...") },
+                    text = {
+                        findWheels.foundWheels.collectAsState().value.let { list ->
+                            Column {
+                                if (list.isEmpty()) Text("No wheel found")
+
+                                list.forEach {
+                                    Row(Modifier.padding(4.dp)) {
+                                        Text(
+                                            modifier = Modifier.clickable(onClick = {
+                                                dismiss()
+                                                wheelConnection.connectDevice(
+                                                    applicationContext,
+                                                    it
+                                                )
+                                            }),
+                                            text = "${it.device.name}\n${it.device.address}: " +
+                                                    "found: ${it.from}${it.rssi?.let { ", ${it}dBm" } ?: ""}"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        TextButton(onClick = { dismiss() }) {
+                            Text("Cancel")
+                        }
+                    },
+                    properties = DialogProperties(usePlatformDefaultWidth = false),
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
+            val scanningState by findWheels.isScanning.collectAsState()
+
+            if (!bleConnectionState.canDisconnect) {
+                Button(
+                    onClick = {
+                        openDialog.value = true
+                        findWheels.find()
+                    }, enabled = !scanningState
+                ) { Text("Find Wheel") }
+            } else {
+                Button(onClick = {
+                    wheelConnection.disconnectDevice(applicationContext)
+                    appStateStore.setState(ClosedState)
+                }) { Text("Disconnect ${wheelConnection.deviceName}") }
+            }
 
             Button(onClick = { manualStop() }) { Text("Stop and exit app") }
 
             Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
 
-            val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
             if (!bleConnectionState.canDisconnect) {
                 val playingState by player.playingState.collectAsState()
                 if (!playingState)
@@ -188,21 +243,6 @@ class MainActivity : ComponentActivity() {
                     }) { Text("Stop simulation") }
             }
 
-            findWheel.foundWheel.collectAsState().value?.let {
-                Text(
-                    modifier = Modifier.clickable(onClick = {
-                        wheelConnection.connectDevice(applicationContext, it)
-                    }),
-                    text = "Device name: ${it.device.name}, addr:${it.device.address}"
-                )
-            }
-
-            if (bleConnectionState.canDisconnect) {
-                Button(onClick = {
-                    wheelConnection.disconnectDevice(applicationContext)
-                    appStateStore.setState(ClosedState)
-                }) { Text("Disconnect from ${wheelConnection.deviceName}") }
-            }
 
             val recordingState by wheelBleRecorder.isRecording.collectAsState()
             if (bleConnectionState == BleConnectionState.CONNECTED_READY && !recordingState)
@@ -316,9 +356,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun manualStop() {
-        appStateStore.setState(ClosedState)
         AppService.enable(applicationContext, false)
         finish()
+        appStateStore.setState(ClosedState)
     }
 
     private fun getSharedRecordingFile(intent: Intent) {

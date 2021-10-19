@@ -28,6 +28,7 @@ class AppStateStore(appContext: Context) {
                 else -> putString(UNDEFINED_SATE, "")
             }
         }
+        Log.i(TAG, "State set to $value")
     }
 
     fun restoreState(appContext: Context) {

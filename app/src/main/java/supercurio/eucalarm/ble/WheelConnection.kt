@@ -74,12 +74,13 @@ class WheelConnection(
             )
         }
 
+        // TODO: check if really necessary
         // get a fresh BluetoothDevice form the adapter
         val deviceToConnect = DeviceFound(
-            BluetoothAdapter
+            device = BluetoothAdapter
                 .getDefaultAdapter()
                 .getRemoteDevice(inputDeviceToConnect.device.address),
-            inputDeviceToConnect.scanRecord
+            scanRecord = inputDeviceToConnect.scanRecord
         )
 
         this.deviceFound = deviceToConnect

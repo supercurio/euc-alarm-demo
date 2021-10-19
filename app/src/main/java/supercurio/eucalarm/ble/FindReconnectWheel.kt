@@ -1,5 +1,6 @@
 package supercurio.eucalarm.ble
 
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -11,9 +12,10 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
     private var reconnectScanCallback: ScanCallback? = null
     private var isScanning = false
+    private val scanner = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
 
     fun findAndReconnect(context: Context, deviceAddr: String) {
-        FindConnectedWheel(context) { deviceFound ->
+        FindConnectedWheels(context) { deviceFound ->
             stopLeScan()
             Log.i(TAG, "Reconnect to already connect device: $deviceAddr")
             wheelConnection.connectDevice(context, deviceFound)
@@ -31,10 +33,10 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 Log.i(TAG, "reconnect scan result: $result")
 
-                val found = DeviceFound(result.device, result.scanRecord)
+                val found = DeviceFound(result.device, DeviceFoundFrom.Scan, result.scanRecord)
                 wheelConnection.connectDevice(context, found)
 
-                FindWheel.bleScanner.stopScan(this)
+                scanner.stopScan(this)
                 isScanning = false
             }
 
@@ -54,12 +56,12 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
             .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
             .build()
 
-        FindWheel.bleScanner.startScan(listOf(scanFilter), scanSettings, reconnectScanCallback)
+        scanner.startScan(listOf(scanFilter), scanSettings, reconnectScanCallback)
         isScanning = true
     }
 
     fun stopLeScan() {
-        reconnectScanCallback?.let { FindWheel.bleScanner.stopScan(it) }
+        reconnectScanCallback?.let { scanner.stopScan(it) }
         isScanning = false
     }
 
