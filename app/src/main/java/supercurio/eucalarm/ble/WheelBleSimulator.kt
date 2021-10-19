@@ -259,6 +259,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         stopReplay()
         input.close()
         stopAdvertising()
+        connectedDevice?.let { server.cancelConnection(it) }
         server.clearServices()
         server.close()
         characteristicsKeys = null

@@ -115,6 +115,7 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
         device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?
     ) = server.sendResponse(device, requestId, status, offset, value)
 
+    fun cancelConnection(device: BluetoothDevice) = server.cancelConnection(device)
     fun clearServices() = server.clearServices()
     fun close() = server.close()
 
