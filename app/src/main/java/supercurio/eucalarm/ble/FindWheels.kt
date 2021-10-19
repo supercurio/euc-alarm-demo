@@ -94,7 +94,7 @@ class FindWheels(private val context: Context) {
 
             devicesFound[result.device.address] = DeviceFound(
                 device = result.device,
-                from = DeviceFoundFrom.Scan,
+                from = DeviceFoundFrom.SCAN,
                 scanRecord = result.scanRecord,
                 rssi = result.rssi
             )

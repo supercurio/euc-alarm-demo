@@ -8,13 +8,14 @@ import android.util.Log
 
 class RestoreStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        Log.i(TAG, "onReceive: ${intent.action}")
+
         if (!VALID_INTENT_ACTIONS.contains(intent.action)) return
 
         // skip regular ACTION_BOOT_COMPLETED on newer Android versions
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-            if (intent.action == Intent.ACTION_BOOT_COMPLETED) return
-
-        Log.i(TAG, "${intent.action}")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+            intent.action == Intent.ACTION_BOOT_COMPLETED
+        ) return
 
         AppStateStore
             .getInstance(context)
@@ -25,11 +26,11 @@ class RestoreStateReceiver : BroadcastReceiver() {
         private const val TAG = "RestoreStateReceiver"
 
         private val VALID_INTENT_ACTIONS = mutableListOf(
-            Intent.ACTION_MY_PACKAGE_REPLACED
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            Intent.ACTION_BOOT_COMPLETED,
         ).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
                 add(Intent.ACTION_LOCKED_BOOT_COMPLETED)
-
         }
     }
 }

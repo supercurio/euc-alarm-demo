@@ -7,15 +7,14 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Binder
 import android.util.Log
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.plus
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.RecordingState
+import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
@@ -51,6 +50,8 @@ class AppService : Service() {
         registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
         if (!isRunning)
             appStateStore.restoreState(applicationContext)
+
+        updateNotificationBasedOnState()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -66,7 +67,7 @@ class AppService : Service() {
         // restore app state
         when (val state = appStateStore.loadState()) {
             is ConnectedState -> {
-                Log.i(TAG, "Reconnect device")
+                Log.i(TAG, "Reconnect device: ${state.deviceAddr}")
                 wheelConnection.reconnectDevice(applicationContext, state.deviceAddr)
             }
 
@@ -98,6 +99,21 @@ class AppService : Service() {
     private val shutdownReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == STOP_BROADCAST) enable(context, false)
+        }
+    }
+
+    private fun updateNotificationBasedOnState() = serviceScope.launch {
+        wheelConnection.connectionStateFlow.collect {
+            val title = when (it) {
+                BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"
+                BleConnectionState.CONNECTING -> "Connecting to ${wheelConnection.deviceName}"
+                BleConnectionState.CONNECTED_READY -> "Connected to ${wheelConnection.deviceName} and ready"
+                BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
+                BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
+                else -> "Not connected"
+            }
+
+            Notifications.updateOngoing(applicationContext, title)
         }
     }
 

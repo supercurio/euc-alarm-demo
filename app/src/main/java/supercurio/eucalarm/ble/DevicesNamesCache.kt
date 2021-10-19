@@ -27,12 +27,11 @@ class DevicesNamesCache(context: Context) {
 
 
     operator fun get(address: String?): String {
-        if (address == null) return NO_NAME
+        if (address == null) return NO_ADDRESS
         map[address]?.let { return it }
 
-        val name = prefs.getString(address, null) ?: NO_NAME
-        map[address] = name
-        return name
+        val name = prefs.getString(address, null)?.also { map[address] = it }
+        return name ?: address
     }
 
 

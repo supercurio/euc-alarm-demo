@@ -43,12 +43,13 @@ class WheelConnection(
     private var veteranWheel: VeteranWheel? = null
     private var deviceFound: DeviceFound? = null
 
+    var reconnectToAddr: String? = null
     val gatt get() = _gatt
     val device get() = _gatt?.device
     val advertisement get() = deviceFound?.scanRecord
     val deviceName
         get() = device?.name ?: devicesNamesCache?.get(
-            device?.address ?: deviceFound?.device?.address
+            device?.address ?: deviceFound?.device?.address ?: reconnectToAddr
         )
 
     // Flows
@@ -58,6 +59,9 @@ class WheelConnection(
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
     fun reconnectDevice(context: Context, deviceAddr: String) {
+        reconnectToAddr = deviceAddr
+        setDevicesNamesCache(context)
+        connectionState = BleConnectionState.SCANNING
         findReconnectWheel.findAndReconnect(context, deviceAddr)
     }
 
@@ -65,7 +69,7 @@ class WheelConnection(
         Log.i(TAG, "connectDevice($inputDeviceToConnect)")
         findReconnectWheel.stopLeScan()
 
-        devicesNamesCache = DevicesNamesCache(context)
+        setDevicesNamesCache(context)
 
         // set app state
         appStateStore.setState(ConnectedState(inputDeviceToConnect.device.address))
@@ -277,6 +281,9 @@ class WheelConnection(
             BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
         gatt.writeDescriptor(desc)
     }
+
+    private fun setDevicesNamesCache(context: Context) =
+        devicesNamesCache ?: DevicesNamesCache(context).also { devicesNamesCache = it }
 
     companion object {
         private const val TAG = "WheelConnection"

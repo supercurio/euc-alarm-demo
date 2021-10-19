@@ -33,7 +33,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 Log.i(TAG, "reconnect scan result: $result")
 
-                val found = DeviceFound(result.device, DeviceFoundFrom.Scan, result.scanRecord)
+                val found = DeviceFound(result.device, DeviceFoundFrom.SCAN, result.scanRecord)
                 wheelConnection.connectDevice(context, found)
 
                 scanner.stopScan(this)

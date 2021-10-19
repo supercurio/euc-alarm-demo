@@ -52,7 +52,7 @@ class FindConnectedWheels(
             gatt.services.firstOrNull {
                 it.uuid.toString() == GotwayWheel.SERVICE_UUID
             }?.let {
-                foundWheelCallback(DeviceFound(gatt.device, DeviceFoundFrom.AlreadyConnected, null))
+                foundWheelCallback(DeviceFound(gatt.device, DeviceFoundFrom.ALREADY_CONNECTED, null))
             }
 
             gatt.close()

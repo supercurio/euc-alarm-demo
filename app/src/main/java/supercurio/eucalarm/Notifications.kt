@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import supercurio.eucalarm.activities.MainActivity
@@ -53,9 +54,11 @@ object Notifications {
             .build()
     }
 
-
     fun updateOngoing(context: Context, title: String) {
+        Log.i(TAG, "Update notification with title: $title")
         context.getSystemService<NotificationManager>()!!
             .notify(AppService.NOTIF_ID, foregroundServiceNotificationBuilder(context, title))
     }
+
+    private const val TAG = "Notifications"
 }
