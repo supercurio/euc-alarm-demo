@@ -14,7 +14,10 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
     private var isScanning = false
     private val scanner = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
 
+    var reconnectToAddr: String? = null
+
     fun findAndReconnect(context: Context, deviceAddr: String) {
+        reconnectToAddr = deviceAddr
         FindConnectedWheels(context) { deviceFound ->
             stopLeScan()
             Log.i(TAG, "Reconnect to already connect device: $deviceAddr")
@@ -63,6 +66,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
     fun stopLeScan() {
         reconnectScanCallback?.let { scanner.stopScan(it) }
         isScanning = false
+        reconnectToAddr = null
     }
 
     companion object {

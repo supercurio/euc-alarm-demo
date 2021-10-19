@@ -43,7 +43,7 @@ class WheelConnection(
     private var veteranWheel: VeteranWheel? = null
     private var deviceFound: DeviceFound? = null
 
-    var reconnectToAddr: String? = null
+    val reconnectToAddr get() = findReconnectWheel.reconnectToAddr
     val gatt get() = _gatt
     val device get() = _gatt?.device
     val advertisement get() = deviceFound?.scanRecord
@@ -59,7 +59,6 @@ class WheelConnection(
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
     fun reconnectDevice(context: Context, deviceAddr: String) {
-        reconnectToAddr = deviceAddr
         setDevicesNamesCache(context)
         connectionState = BleConnectionState.SCANNING
         findReconnectWheel.findAndReconnect(context, deviceAddr)

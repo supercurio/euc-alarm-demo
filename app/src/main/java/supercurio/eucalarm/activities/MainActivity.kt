@@ -45,7 +45,6 @@ class MainActivity : ComponentActivity() {
     /**
      * TODO:
      *  * look into Bluetooth connection receiver to sync with EUC World / WheelLog
-     *  * find potential Settings-type UI in Compose
      */
 
     private val activityScope = MainScope() + CoroutineName(TAG)
