@@ -46,7 +46,10 @@ class WheelConnection(
     val gatt get() = _gatt
     val device get() = _gatt?.device
     val advertisement get() = deviceFound?.scanRecord
-    val deviceName get() = device?.name ?: devicesNamesCache?.get(device?.address)
+    val deviceName
+        get() = device?.name ?: devicesNamesCache?.get(
+            device?.address ?: deviceFound?.device?.address
+        )
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()

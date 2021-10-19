@@ -213,10 +213,19 @@ class MainActivity : ComponentActivity() {
                     }, enabled = !scanningState
                 ) { Text("Find Wheel") }
             } else {
+
+                val stateText = when (bleConnectionState) {
+                    BleConnectionState.CONNECTED_READY -> "ready"
+                    BleConnectionState.DISCONNECTED_RECONNECTING -> "reconnecting"
+                    BleConnectionState.CONNECTING -> "connecting"
+                    BleConnectionState.CONNECTED -> "connected"
+                    else -> ""
+                }
+
                 Button(onClick = {
                     wheelConnection.disconnectDevice(applicationContext)
                     appStateStore.setState(ClosedState)
-                }) { Text("Disconnect ${wheelConnection.deviceName}") }
+                }) { Text("Disconnect ${wheelConnection.deviceName} ($stateText)") }
             }
 
             Button(onClick = { manualStop() }) { Text("Stop and exit app") }

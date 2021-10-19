@@ -38,6 +38,7 @@ class DevicesNamesCache(context: Context) {
 
     companion object {
         private const val TAG = "DeviceNamesCache"
+        private const val NO_ADDRESS = "no-address"
         private const val NO_NAME = "no-name"
     }
 }
