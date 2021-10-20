@@ -1,5 +1,6 @@
 package supercurio.eucalarm.activities
 
+import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
@@ -26,7 +27,6 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.*
-import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ClosedState
 import supercurio.eucalarm.ble.*
@@ -207,8 +207,11 @@ class MainActivity : ComponentActivity() {
             if (!bleConnectionState.canDisconnect) {
                 Button(
                     onClick = {
-                        openDialog.value = true
-                        findWheels.find()
+                        if (BluetoothAdapter.getDefaultAdapter().isEnabled) {
+                            openDialog.value = true
+                            findWheels.find()
+                        } else startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+
                     }, enabled = !scanningState
                 ) { Text("Find Wheel") }
             } else {
@@ -238,17 +241,19 @@ class MainActivity : ComponentActivity() {
                 else
                     Button(onClick = { player.stop() }) { Text("Stop player") }
 
-                var simulationState by remember { mutableStateOf(false) }
-                if (!simulationState)
-                    Button(onClick = {
-                        simulateLastRecording()
-                        simulationState = true
-                    }) { Text("Simulate last recording") }
-                else
-                    Button(onClick = {
-                        simulator.stop()
-                        simulationState = false
-                    }) { Text("Stop simulation") }
+                if (simulator.isSupported) {
+                    var simulationState by remember { mutableStateOf(false) }
+                    if (!simulationState)
+                        Button(onClick = {
+                            simulateLastRecording()
+                            simulationState = true
+                        }) { Text("Simulate last recording") }
+                    else
+                        Button(onClick = {
+                            simulator.stop()
+                            simulationState = false
+                        }) { Text("Stop simulation") }
+                }
             }
 
 

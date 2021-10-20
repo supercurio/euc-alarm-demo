@@ -13,7 +13,7 @@ class FindConnectedWheels(
     private val context: Context,
     foundWheelCallback: (DeviceFound) -> Unit
 ) {
-    private val scope = MainScope() + CoroutineName(TAG)
+    private val scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     /**
      * Find already connected wheel
@@ -52,7 +52,13 @@ class FindConnectedWheels(
             gatt.services.firstOrNull {
                 it.uuid.toString() == GotwayWheel.SERVICE_UUID
             }?.let {
-                foundWheelCallback(DeviceFound(gatt.device, DeviceFoundFrom.ALREADY_CONNECTED, null))
+                foundWheelCallback(
+                    DeviceFound(
+                        gatt.device,
+                        DeviceFoundFrom.ALREADY_CONNECTED,
+                        null
+                    )
+                )
             }
 
             gatt.close()

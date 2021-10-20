@@ -60,6 +60,7 @@ class WheelConnection(
 
     fun reconnectDevice(context: Context, deviceAddr: String) {
         setDevicesNamesCache(context)
+        registerBtStateChangeReceiver(context)
         connectionState = BleConnectionState.SCANNING
         findReconnectWheel.findAndReconnect(context, deviceAddr)
     }
@@ -93,13 +94,7 @@ class WheelConnection(
         shouldStayConnected = true
         powerManagement.getLock(TAG)
 
-        if (!btStateChangeReceiver.registered) {
-            context.registerReceiver(
-                btStateChangeReceiver,
-                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-            )
-            btStateChangeReceiver.registered = true
-        }
+        registerBtStateChangeReceiver(context)
 
         val btManager = context.getSystemService<BluetoothManager>()!!
 
@@ -169,6 +164,16 @@ class WheelConnection(
     private fun doConnect(context: Context, device: BluetoothDevice) {
         _gatt = device.connectGatt(context, false, gattCallback)
         devicesNamesCache?.remember(device)
+    }
+
+    private fun registerBtStateChangeReceiver(context: Context) {
+        if (!btStateChangeReceiver.registered) {
+            context.registerReceiver(
+                btStateChangeReceiver,
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+            )
+            btStateChangeReceiver.registered = true
+        }
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -256,9 +261,12 @@ class WheelConnection(
                 }
 
                 BluetoothAdapter.STATE_ON -> {
+                    val addrToReconnect =
+                        findReconnectWheel.reconnectToAddr ?: deviceFound?.device?.address
 
-                    deviceFound?.let {
-                        val addr = it.device.address
+                    Log.i(TAG, "Bluetooth adapter ON, addrToReconnect: $addrToReconnect")
+
+                    addrToReconnect?.let { addr ->
                         Log.i(
                             TAG, "Bluetooth adapter on, try to reconnect " +
                                     "to previous device by scanning for $addr"

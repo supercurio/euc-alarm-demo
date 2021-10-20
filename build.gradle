@@ -3,10 +3,14 @@ buildscript {
     ext {
         compose_version = '1.0.4'
         use_protobuf_lite = true
+        use_hunter_timing = false
+        use_hunter_debug = true
     }
     repositories {
         google()
         mavenCentral()
+        if (use_hunter_timing || use_hunter_debug) jcenter()
+
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:7.0.3'
@@ -15,6 +19,12 @@ buildscript {
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
+
+        // https://github.com/Leaking/Hunter/blob/1bc2b98c8b51ae19daf2a59c446269051657bdc2/README_hunter_debug.md
+
+        if (use_hunter_timing) classpath 'com.quinn.hunter:hunter-timing-plugin:1.1.0'
+        if (use_hunter_debug) classpath 'com.quinn.hunter:hunter-debug-plugin:1.1.0'
+        if (use_hunter_timing || use_hunter_debug) classpath 'com.quinn.hunter:hunter-transform:1.1.0'
     }
 }
 

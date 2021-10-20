@@ -23,7 +23,7 @@ import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 
 class AppService : Service() {
-    private val serviceScope = MainScope() + CoroutineName(TAG)
+    private val serviceScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     override fun onBind(intent: Intent): Binder? = null
 

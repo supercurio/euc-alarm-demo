@@ -25,7 +25,7 @@ import java.util.*
 
 class WheelBleSimulator(context: Context, private val powerManagement: PowerManagement) {
 
-    private val simulatorScope = MainScope() + CoroutineName(TAG)
+    private val simulatorScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
     private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
     private lateinit var server: SuspendingGattServer
@@ -37,7 +37,13 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private var advertisement: BleAdvertisement? = null
     private var doReplay = false
 
+     val isSupported by lazy {
+        BluetoothAdapter.getDefaultAdapter().bluetoothLeAdvertiser != null
+    }
+
     fun start(context: Context, recordingProvider: RecordingProvider) {
+
+        if (!isSupported) return
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         val receiver = object : BroadcastReceiver() {
@@ -47,7 +53,6 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
 
         }
         context.registerReceiver(receiver, intentFilter)
-
 
         powerManagement.getLock(TAG)
         input = recordingProvider
@@ -140,7 +145,13 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
                 }
             }.build()
 
-        advertiser = btManager.adapter.bluetoothLeAdvertiser.apply {
+        val adapter = btManager.adapter
+        advertiser = adapter.bluetoothLeAdvertiser?.apply {
+            Log.i(
+                TAG, "Adapter isMultipleAdvertisementSupported: " +
+                        "${adapter.isMultipleAdvertisementSupported}"
+            )
+
             startAdvertising(advertiseSettings, advertiseData, advertiserCallback)
         }
     }

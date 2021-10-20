@@ -30,6 +30,7 @@ class AlertFeedback(
      * TODO:
      *  - Listen to changes in audio output configuration and reconfigure the AudioTrack
      *    with lowest-latency parameters
+     *  - Re-generate alarm audio buffer according to the new samplerate
      */
 
     private lateinit var audioManager: AudioManager

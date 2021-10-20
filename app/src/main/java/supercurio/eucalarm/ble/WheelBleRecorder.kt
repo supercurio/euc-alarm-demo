@@ -40,7 +40,7 @@ class WheelBleRecorder(
             return
         }
 
-        recorderScope = (MainScope() + CoroutineName(TAG))
+        recorderScope = (CoroutineScope(Dispatchers.Default) + CoroutineName(TAG))
 
         when (connection.connectionStateFlow.value) {
             BleConnectionState.CONNECTED_READY -> {
