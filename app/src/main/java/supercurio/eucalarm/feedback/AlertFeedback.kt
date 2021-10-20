@@ -90,34 +90,6 @@ class AlertFeedback(
         setupComplete = true
     }
 
-    private fun runTracks() {
-        if (tracksRunning) return
-        tracksRunning = true
-
-        keepAliveTrack = setupKeepAliveTrack()
-        alertTrack = setupAlertTrack()
-    }
-
-    private fun stopTracks() {
-        if (!tracksRunning) return
-        tracksRunning = false
-
-        stopAlert()
-
-        alertTrack.pause()
-        keepAliveTrack.pause()
-
-        alertTrack.flush()
-        keepAliveTrack.flush()
-
-        alertTrack.stop()
-        keepAliveTrack.stop()
-
-        alertTrack.release()
-        keepAliveTrack.release()
-
-    }
-
     fun play() {
         if (!setupComplete) return
         if (!tracksRunning) return
@@ -155,6 +127,34 @@ class AlertFeedback(
     /**
      * private methods
      */
+
+    private fun runTracks() {
+        if (tracksRunning) return
+        tracksRunning = true
+
+        keepAliveTrack = setupKeepAliveTrack()
+        alertTrack = setupAlertTrack()
+    }
+
+    private fun stopTracks() {
+        if (!tracksRunning) return
+        tracksRunning = false
+
+        stopAlert()
+
+        alertTrack.pause()
+        keepAliveTrack.pause()
+
+        alertTrack.flush()
+        keepAliveTrack.flush()
+
+        alertTrack.stop()
+        keepAliveTrack.stop()
+
+        alertTrack.release()
+        keepAliveTrack.release()
+
+    }
 
     private fun requestAudioFocus() =
         audioManager.requestAudioFocus(

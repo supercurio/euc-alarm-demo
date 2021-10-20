@@ -27,6 +27,12 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
         scanToReconnectTo(context, deviceAddr)
     }
 
+    fun stopLeScan() {
+        reconnectScanCallback?.let { scanner.stopScan(it) }
+        isScanning = false
+        reconnectToAddr = null
+    }
+
     private fun scanToReconnectTo(context: Context, deviceAddr: String) {
         if (isScanning) return
 
@@ -61,12 +67,6 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
         scanner.startScan(listOf(scanFilter), scanSettings, reconnectScanCallback)
         isScanning = true
-    }
-
-    fun stopLeScan() {
-        reconnectScanCallback?.let { scanner.stopScan(it) }
-        isScanning = false
-        reconnectToAddr = null
     }
 
     companion object {

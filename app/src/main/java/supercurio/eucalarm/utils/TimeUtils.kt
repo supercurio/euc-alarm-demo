@@ -12,16 +12,8 @@ object TimeUtils {
     private const val NANOS_PER_SECOND = 1_000_000_000
     private const val NANOS_PER_MS = 1_000_000
 
-    private fun timestampFromNanos(nanoseconds: Long) = timestamp {
-        seconds = nanoseconds / NANOS_PER_SECOND
-        nanos = (nanoseconds % NANOS_PER_SECOND).toInt()
-    }
-
     fun timestampSinceNanos(nanoseconds: Long) =
         timestampFromNanos(SystemClock.elapsedRealtimeNanos() - nanoseconds)
-
-    private fun timestampToNanos(timestamp: Timestamp) =
-        (timestamp.seconds * NANOS_PER_SECOND + timestamp.nanos)
 
     fun timestampNow() = NowAndTimestamp(
         timestamp {
@@ -40,6 +32,14 @@ object TimeUtils {
     }
 
     fun Timestamp.toMs() = seconds * 1000 + nanos / NANOS_PER_MS
+
+    private fun timestampFromNanos(nanoseconds: Long) = timestamp {
+        seconds = nanoseconds / NANOS_PER_SECOND
+        nanos = (nanoseconds % NANOS_PER_SECOND).toInt()
+    }
+
+    private fun timestampToNanos(timestamp: Timestamp) =
+        (timestamp.seconds * NANOS_PER_SECOND + timestamp.nanos)
 }
 
 data class NowAndTimestamp(

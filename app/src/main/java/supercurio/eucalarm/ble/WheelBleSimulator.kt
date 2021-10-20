@@ -97,6 +97,23 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         }
     }
 
+    fun stop() {
+        stopReplay()
+        input.close()
+        stopAdvertising()
+        connectedDevice?.let { server.cancelConnection(it) }
+        server.clearServices()
+        server.close()
+        characteristicsKeys = null
+        powerManagement.removeLock(TAG)
+    }
+
+    fun shutdown() {
+        Log.i(TAG, "Shutdown")
+        simulatorScope.cancel()
+        instance = null
+    }
+
     private fun readDeviceInfo() = RecordingMessageType
         .parseDelimitedFrom(input.inputStream)
         .bleDeviceInfo
@@ -254,23 +271,6 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     }
 
     private val advertiserCallback = object : AdvertiseCallback() {}
-
-    fun stop() {
-        stopReplay()
-        input.close()
-        stopAdvertising()
-        connectedDevice?.let { server.cancelConnection(it) }
-        server.clearServices()
-        server.close()
-        characteristicsKeys = null
-        powerManagement.removeLock(TAG)
-    }
-
-    fun shutdown() {
-        Log.i(TAG, "Shutdown")
-        simulatorScope.cancel()
-        instance = null
-    }
 
     companion object {
         private const val TAG = "WheelBleSimulator"

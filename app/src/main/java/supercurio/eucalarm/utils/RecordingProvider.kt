@@ -15,9 +15,10 @@ class RecordingProvider(
     private val resourceId: Int,
 ) {
 
+    val inputStream get() = realInputStream
+
     private var realInputStream: InputStream = open()
 
-    val inputStream get() = realInputStream
     fun available() = realInputStream.available()
 
     fun reset() {

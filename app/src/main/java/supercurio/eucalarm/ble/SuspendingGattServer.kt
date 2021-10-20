@@ -9,6 +9,40 @@ import kotlin.coroutines.suspendCoroutine
 
 class SuspendingGattServer(context: Context, private val callback: BluetoothGattServerCallback) {
 
+    private val serverCallback = ServerCallback()
+
+    private val btManager = context.getSystemService<BluetoothManager>()!!
+    private val server: BluetoothGattServer = btManager.openGattServer(context, serverCallback)
+
+    val services: List<BluetoothGattService>
+        get() = server.services
+
+    suspend fun addService(bluetoothGattService: BluetoothGattService) =
+        suspendCoroutine<Int> { cont ->
+            serverCallback.continuation = cont
+            server.addService(bluetoothGattService)
+        }
+
+    suspend fun notifyCharacteristicChanged(
+        device: BluetoothDevice,
+        characteristic: BluetoothGattCharacteristic,
+        confirm: Boolean
+    ) = suspendCoroutine<Int> { cont ->
+        serverCallback.continuation = cont
+        server.notifyCharacteristicChanged(device, characteristic, confirm)
+    }
+
+    fun sendSuccess(device: BluetoothDevice?, requestId: Int) =
+        server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+
+    fun sendResponse(
+        device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?
+    ) = server.sendResponse(device, requestId, status, offset, value)
+
+    fun cancelConnection(device: BluetoothDevice) = server.cancelConnection(device)
+    fun clearServices() = server.clearServices()
+    fun close() = server.close()
+
     inner class ServerCallback : BluetoothGattServerCallback() {
         var continuation: Continuation<Int>? = null
 
@@ -84,39 +118,4 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
             callback.onNotificationSent(device, status)
         }
     }
-
-    private val serverCallback = ServerCallback()
-
-    private val btManager = context.getSystemService<BluetoothManager>()!!
-    private val server: BluetoothGattServer = btManager.openGattServer(context, serverCallback)
-
-    val services: List<BluetoothGattService>
-        get() = server.services
-
-    suspend fun addService(bluetoothGattService: BluetoothGattService) =
-        suspendCoroutine<Int> { cont ->
-            serverCallback.continuation = cont
-            server.addService(bluetoothGattService)
-        }
-
-    suspend fun notifyCharacteristicChanged(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
-        confirm: Boolean
-    ) = suspendCoroutine<Int> { cont ->
-        serverCallback.continuation = cont
-        server.notifyCharacteristicChanged(device, characteristic, confirm)
-    }
-
-    fun sendSuccess(device: BluetoothDevice?, requestId: Int) =
-        server.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
-
-    fun sendResponse(
-        device: BluetoothDevice?, requestId: Int, status: Int, offset: Int, value: ByteArray?
-    ) = server.sendResponse(device, requestId, status, offset, value)
-
-    fun cancelConnection(device: BluetoothDevice) = server.cancelConnection(device)
-    fun clearServices() = server.clearServices()
-    fun close() = server.close()
-
 }

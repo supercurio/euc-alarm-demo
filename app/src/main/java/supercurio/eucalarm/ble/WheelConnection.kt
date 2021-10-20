@@ -123,11 +123,6 @@ class WheelConnection(
         }
     }
 
-    private fun doConnect(context: Context, device: BluetoothDevice) {
-        _gatt = device.connectGatt(context, false, gattCallback)
-        devicesNamesCache?.remember(device)
-    }
-
     fun disconnectDevice(context: Context) {
         if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
             connectionState = BleConnectionState.DISCONNECTED
@@ -156,6 +151,24 @@ class WheelConnection(
         Log.i(TAG, "Shutdown")
         disconnectDevice(context)
         instance = null
+    }
+
+    fun setupGotwayType() {
+        Log.i(TAG, "Setup connection")
+        _gatt?.let { gatt ->
+            val service = gatt.getService(UUID.fromString(GotwayWheel.SERVICE_UUID))
+            notificationChar = service.getCharacteristic(
+                UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)
+            )?.apply {
+                Log.i(TAG, "char uuid: ${this.uuid}")
+                setNotification(gatt, true)
+            }
+        }
+    }
+
+    private fun doConnect(context: Context, device: BluetoothDevice) {
+        _gatt = device.connectGatt(context, false, gattCallback)
+        devicesNamesCache?.remember(device)
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -207,19 +220,6 @@ class WheelConnection(
                 _notifiedCharacteristic.emit(NotifiedCharacteristic(charUUID, charValue, id))
             }
             id++
-        }
-    }
-
-    fun setupGotwayType() {
-        Log.i(TAG, "Setup connection")
-        _gatt?.let { gatt ->
-            val service = gatt.getService(UUID.fromString(GotwayWheel.SERVICE_UUID))
-            notificationChar = service.getCharacteristic(
-                UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)
-            )?.apply {
-                Log.i(TAG, "char uuid: ${this.uuid}")
-                setNotification(gatt, true)
-            }
         }
     }
 

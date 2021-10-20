@@ -61,7 +61,16 @@ class WheelBleRecorder(
         }
     }
 
-    fun stop() {
+    fun shutDown() {
+        Log.i(TAG, "Shutdown")
+        stop()
+        startTime = null
+        recorderScope?.cancel()
+        recorderScope = null
+        // always re-use the same instance after clearing it
+    }
+
+    private fun stop() {
         out?.flush()
         out?.close()
         characteristicsKeys = null
@@ -70,15 +79,6 @@ class WheelBleRecorder(
             appStateStore.setState(ConnectedState(it))
         }
         isRecording.value = false
-    }
-
-    fun shutDown() {
-        Log.i(TAG, "Shutdown")
-        stop()
-        startTime = null
-        recorderScope?.cancel()
-        recorderScope = null
-        // always re-use the same instance after clearing it
     }
 
     private fun doRecording(context: Context) {

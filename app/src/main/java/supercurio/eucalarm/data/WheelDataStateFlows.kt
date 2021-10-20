@@ -1,7 +1,6 @@
 package supercurio.eucalarm.data
 
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 class WheelDataStateFlows : WheelDataInterface {
 
@@ -10,8 +9,6 @@ class WheelDataStateFlows : WheelDataInterface {
      * Useful to trigger refresh or logging on a series of data update
      * instead of for each data point separately
      */
-    private val _lastUpdateNanos = MutableStateFlow<Long?>(0)
-    val newDataFlow = _lastUpdateNanos.asStateFlow()
 
     override var dataTimeMs: Long? = null
 
@@ -67,11 +64,7 @@ class WheelDataStateFlows : WheelDataInterface {
             beeperFlow.value = value
         }
 
-
-    override fun gotNewData(end: Boolean) = if (end)
-        _lastUpdateNanos.value = null
-    else
-        _lastUpdateNanos.value = System.nanoTime()
+    override fun gotNewData(end: Boolean) = Unit
 
     companion object {
         private var instance: WheelDataStateFlows? = null

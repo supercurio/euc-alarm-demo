@@ -152,7 +152,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
-    fun MyLayout() {
+    private fun MyLayout() {
 
         Column(modifier = Modifier.padding(16.dp)) {
 
