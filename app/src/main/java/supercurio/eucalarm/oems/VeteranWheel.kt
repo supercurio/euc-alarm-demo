@@ -16,7 +16,6 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
     private val frame = ByteBuffer.allocate(FRAME_SIZE)
 
 
-    // TODO: Improve the robustness of this routine with packet loss
     fun findFrame(data: ByteArray) {
         if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
 

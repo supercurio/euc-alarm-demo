@@ -65,7 +65,6 @@ fun main() {
 
                 val bytes = notification.bytes.toByteArray()
                 wheelData.dataTimeMs = startMs + notification.elapsedTimestamp.toMs()
-                // TODO: re-add Gotway frame parser
                 gotwayWheel.findFrame(bytes)
                 veteranWheel.findFrame(bytes)
             }
