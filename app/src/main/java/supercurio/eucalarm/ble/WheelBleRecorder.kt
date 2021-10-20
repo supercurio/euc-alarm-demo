@@ -122,6 +122,12 @@ class WheelBleRecorder(
                 writeNotificationData(notifiedCharacteristic)
             }
         }
+
+        recorderScope?.launch {
+            connection.connectionStateFlow.collect { state ->
+                writeConnectionState(state)
+            }
+        }
     }
 
     private fun writeNotificationData(notifiedCharacteristic: NotifiedCharacteristic) =
@@ -188,14 +194,31 @@ class WheelBleRecorder(
         startTime?.timestamp?.let { startTimestamp = it }
     }.writeWireMessageTo(out)
 
+    private fun writeConnectionState(state: BleConnectionState) = when (state) {
+        BleConnectionState.BLUETOOTH_OFF -> ConnectionState.BLUETOOTH_OFF
+        BleConnectionState.DISCONNECTED -> ConnectionState.DISCONNECTED
+        BleConnectionState.DISCONNECTING -> ConnectionState.DISCONNECTING
+        BleConnectionState.SYSTEM_ALREADY_CONNECTED -> ConnectionState.SYSTEM_ALREADY_CONNECTED
+        BleConnectionState.CONNECTING -> ConnectionState.CONNECTING
+        BleConnectionState.DISCONNECTED_RECONNECTING -> ConnectionState.DISCONNECTED_RECONNECTING
+        BleConnectionState.CONNECTED -> ConnectionState.CONNECTED
+        BleConnectionState.CONNECTED_READY -> ConnectionState.CONNECTED_READY
+        else -> ConnectionState.UNKNOWN
+    }.writeWireMessageTo(out)
+
     private fun Any.writeWireMessageTo(out: BufferedOutputStream?) {
         if (out == null) return
-        val message = when (val src = this) {
-            is BleDeviceInfo -> recordingMessageType { bleDeviceInfo = src }
-            is GattNotification -> recordingMessageType { gattNotification = src }
-            is RecordingInfo -> recordingMessageType { recordingInfo = src }
-            else -> null
-        } ?: error("Unsupported message type")
+        val input = this
+
+        val message = recordingMessageType {
+            when (input) {
+                is BleDeviceInfo -> bleDeviceInfo = input
+                is GattNotification -> gattNotification = input
+                is RecordingInfo -> recordingInfo = input
+                is ConnectionState -> connectionState = input
+                else -> error("Unsupported message type")
+            }
+        }
 
         message.writeDelimitedTo(out)
         out.flush()

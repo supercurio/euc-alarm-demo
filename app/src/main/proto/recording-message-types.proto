@@ -14,6 +14,6 @@ message RecordingMessageType {
         BleDeviceInfo ble_device_info = 1;
         GattNotification gatt_notification = 2;
         RecordingInfo recording_info = 3;
-        ConnectionStatus connection_status = 4;
+        ConnectionState connection_state = 4;
     }
 }
