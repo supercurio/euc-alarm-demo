@@ -1,5 +1,6 @@
 package supercurio.eucalarm.service
 
+import android.app.ActivityManager
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -7,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Binder
 import android.util.Log
+import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import supercurio.eucalarm.Notifications
@@ -48,8 +50,9 @@ class AppService : Service() {
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
 
         registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
-        if (!isRunning)
-            appStateStore.restoreState(applicationContext)
+
+        // when the service is started by the system after being killed or a crash
+        if (startedBySystem) appStateStore.restoreState(applicationContext)
 
         updateNotificationBasedOnState()
     }
@@ -83,8 +86,6 @@ class AppService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
-        isRunning = false
-
         unregisterReceiver(shutdownReceiver)
 
         wheelBleRecorder.shutDown()
@@ -93,6 +94,8 @@ class AppService : Service() {
         alert.shutdown()
         powerManagement.releaseAll()
         serviceScope.cancel()
+
+        startedBySystem = true
     }
 
 
@@ -123,12 +126,12 @@ class AppService : Service() {
         const val NOTIF_ID = 1
         const val STOP_BROADCAST = "StopAndExitService"
 
-        private var isRunning = false
+        private var startedBySystem = true
 
         fun enable(context: Context, status: Boolean) {
-            if (status == isRunning) return
+            startedBySystem = false
 
-            isRunning = status
+            if (status == context.isServiceRunning()) return
 
             if (status) {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -140,5 +143,14 @@ class AppService : Service() {
         }
 
         private fun getIntent(context: Context) = Intent(context, AppService::class.java)
+
+        private fun Context.isServiceRunning(): Boolean {
+            val am = getSystemService<ActivityManager>()!!
+            am.getRunningServices(Integer.MAX_VALUE).forEach { serviceInfo ->
+                Log.i(TAG, "service info: $serviceInfo")
+                if (serviceInfo.service.className == AppService::class.qualifiedName) return true
+            }
+            return false
+        }
     }
 }
