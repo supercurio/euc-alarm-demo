@@ -15,6 +15,8 @@ import supercurio.eucalarm.service.AppService
 
 object Notifications {
 
+    var muted = false
+
     private const val NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID = "AppService"
 
     fun createNotificationChannels(context: Context) {
@@ -55,6 +57,8 @@ object Notifications {
     }
 
     fun updateOngoing(context: Context, title: String) {
+        if (muted) return
+
         Log.i(TAG, "Update notification with title: $title")
         context.getSystemService<NotificationManager>()!!
             .notify(AppService.NOTIF_ID, foregroundServiceNotificationBuilder(context, title))

@@ -40,6 +40,7 @@ class AppService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "onCreate")
+        Notifications.muted = false
         appStateStore = AppStateStore.getInstance(applicationContext)
         powerManagement = PowerManagement.getInstance(applicationContext)
         wheelConnection = WheelConnection.getInstance(wheelData, powerManagement, appStateStore)
@@ -86,6 +87,7 @@ class AppService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
+        Notifications.muted = true
         unregisterReceiver(shutdownReceiver)
 
         wheelBleRecorder.shutDown()
