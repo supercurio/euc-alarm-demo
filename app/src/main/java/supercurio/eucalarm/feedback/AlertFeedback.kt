@@ -75,7 +75,7 @@ class AlertFeedback(
                 // Run Audio Tracks only if we should be connected to the wheel
                 when (state) {
                     BleConnectionState.CONNECTED,
-                    BleConnectionState.CONNECTED_READY,
+                    BleConnectionState.RECEIVING_DATA,
                     BleConnectionState.REPLAY,
                     BleConnectionState.CONNECTING,
                     BleConnectionState.DISCONNECTED_RECONNECTING -> runTracks()

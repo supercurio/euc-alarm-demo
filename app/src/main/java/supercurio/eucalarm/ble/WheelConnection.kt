@@ -206,7 +206,7 @@ class WheelConnection(
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
             setupGotwayType()
-            connectionState = BleConnectionState.CONNECTED_READY
+            connectionState = BleConnectionState.RECEIVING_DATA
         }
 
         var id = 0L

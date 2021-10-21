@@ -43,13 +43,13 @@ class WheelBleRecorder(
         recorderScope = (CoroutineScope(Dispatchers.Default) + CoroutineName(TAG))
 
         when (connection.connectionStateFlow.value) {
-            BleConnectionState.CONNECTED_READY -> {
+            BleConnectionState.RECEIVING_DATA -> {
                 Log.i(TAG, "Connection is ready, record")
                 doRecording(context)
             }
             else -> recorderScope?.launch {
                 connection.connectionStateFlow
-                    .filter { it == BleConnectionState.CONNECTED_READY }
+                    .filter { it == BleConnectionState.RECEIVING_DATA }
                     .take(1)
                     .collect {
                         if (storedDeviceAddr == connection.device?.address) {
@@ -202,7 +202,7 @@ class WheelBleRecorder(
         BleConnectionState.CONNECTING -> ConnectionState.CONNECTING
         BleConnectionState.DISCONNECTED_RECONNECTING -> ConnectionState.DISCONNECTED_RECONNECTING
         BleConnectionState.CONNECTED -> ConnectionState.CONNECTED
-        BleConnectionState.CONNECTED_READY -> ConnectionState.CONNECTED_READY
+        BleConnectionState.RECEIVING_DATA -> ConnectionState.RECEIVING_DATA
         else -> ConnectionState.UNKNOWN
     }.writeWireMessageTo(out)
 

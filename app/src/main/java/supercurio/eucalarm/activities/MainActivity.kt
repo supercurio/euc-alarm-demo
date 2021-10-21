@@ -217,7 +217,7 @@ class MainActivity : ComponentActivity() {
             } else {
 
                 val stateText = when (bleConnectionState) {
-                    BleConnectionState.CONNECTED_READY -> "ready"
+                    BleConnectionState.RECEIVING_DATA -> "receiving data"
                     BleConnectionState.DISCONNECTED_RECONNECTING -> "reconnecting"
                     BleConnectionState.CONNECTING -> "connecting"
                     BleConnectionState.CONNECTED -> "connected"
@@ -258,7 +258,7 @@ class MainActivity : ComponentActivity() {
 
 
             val recordingState by wheelBleRecorder.isRecording.collectAsState()
-            if (bleConnectionState == BleConnectionState.CONNECTED_READY && !recordingState)
+            if (bleConnectionState == BleConnectionState.RECEIVING_DATA && !recordingState)
                 Button(onClick = { record() }) { Text("Record") }
             if (recordingState)
                 Button(onClick = { stopRecording() }) { Text("Stop recording") }
