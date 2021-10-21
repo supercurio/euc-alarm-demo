@@ -43,13 +43,12 @@ class WheelConnection(
     private var veteranWheel: VeteranWheel? = null
     private var deviceFound: DeviceFound? = null
 
-    val reconnectToAddr get() = findReconnectWheel.reconnectToAddr
     val gatt get() = _gatt
     val device get() = _gatt?.device
     val advertisement get() = deviceFound?.scanRecord
     val deviceName
         get() = device?.name ?: devicesNamesCache?.get(
-            device?.address ?: deviceFound?.device?.address ?: reconnectToAddr
+            device?.address ?: deviceFound?.device?.address ?: findReconnectWheel.reconnectToAddr
         )
 
     // Flows

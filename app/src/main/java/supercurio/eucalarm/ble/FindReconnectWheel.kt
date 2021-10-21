@@ -24,9 +24,11 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
         reconnectToAddr = deviceAddr
         if (BluetoothAdapter.getDefaultAdapter().isEnabled) {
             FindConnectedWheels(context) { deviceFound ->
-                stopLeScan()
-                Log.i(TAG, "Reconnect to already connect device: $deviceAddr")
-                wheelConnection.connectDevice(context, deviceFound)
+                if (deviceFound.device.address == reconnectToAddr) {
+                    stopLeScan()
+                    Log.i(TAG, "Reconnect to already connect device: $deviceAddr")
+                    wheelConnection.connectDevice(context, deviceFound)
+                }
             }.find()
 
             scanToReconnectTo(context, deviceAddr)
