@@ -1,17 +1,19 @@
 package supercurio.eucalarm.ble
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.util.Log
-import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
+import kotlinx.coroutines.*
+import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 
 class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
-    private var reconnectScanCallback: ScanCallback? = null
+    private val scope = CoroutineScope(Dispatchers.Main) + CoroutineName(TAG)
+
+    private var scannerWrapper = LeScannerWrapper()
     private var isScanning = false
     private val offloadedFilteringSupported =
         BluetoothAdapter.getDefaultAdapter().isOffloadedFilteringSupported
@@ -32,7 +34,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
     }
 
     fun stopLeScan() {
-        reconnectScanCallback?.let { scanner.stopScan(it) }
+        scannerWrapper.stop()
         isScanning = false
         reconnectToAddr = null
     }
@@ -42,26 +44,20 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
         Log.i(TAG, "Start scan for $deviceAddr")
 
-        reconnectScanCallback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                if (!isScanning) return
-                Log.i(TAG, "reconnect scan result: $result")
+        scannerWrapper = LeScannerWrapper()
 
-                // filter
-                if (!offloadedFilteringSupported && result.device.address != deviceAddr) return
+        val onResultCallback = fun(result: ScanResult) {
+            if (!isScanning) return
+            Log.i(TAG, "reconnect scan result: $result")
 
-                val found = DeviceFound(result.device, DeviceFoundFrom.SCAN, result.scanRecord)
-                wheelConnection.connectDevice(context, found)
+            // filter
+            if (!offloadedFilteringSupported && result.device.address != deviceAddr) return
 
-                scanner.stopScan(this)
-                isScanning = false
-            }
+            val found = DeviceFound(result.device, DeviceFoundFrom.SCAN, result.scanRecord)
+            wheelConnection.connectDevice(context, found)
 
-            override fun onScanFailed(errorCode: Int) {
-                super.onScanFailed(errorCode)
-                Log.e(TAG, "Scan failed with error: ${toScanFailError(errorCode)}")
-                isScanning = false
-            }
+            scannerWrapper.stop()
+            isScanning = false
         }
 
         val scanFilter = if (offloadedFilteringSupported) ScanFilter.Builder()
@@ -70,15 +66,28 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
         else
             ScanFilter.Builder().build()
 
-        val scanSettings = ScanSettings.Builder()
+        val standardScanSettings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
+            .build()
+
+        val fallbackScanSettings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
             .build()
 
-        scanner.startScan(listOf(scanFilter), scanSettings, reconnectScanCallback)
-        isScanning = true
-    }
+        scope.launch {
+            // try first with CALLBACK_TYPE_FIRST_MATCH
 
-    private val scanner get() = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
+            isScanning = true
+            when (scannerWrapper.scan(listOf(scanFilter), standardScanSettings, onResultCallback)) {
+                LeScannerWrapper.ScannerWrapperResult.Success -> Log.i(TAG, "Scanner success")
+                LeScannerWrapper.ScannerWrapperResult.Failure ->
+                    // didn't work, try with the fallback settings instead
+                    scannerWrapper.scan(listOf(scanFilter), fallbackScanSettings, onResultCallback)
+            }
+            isScanning = false
+        }
+    }
 
     companion object {
         private const val TAG = "FindReconnectWheel"

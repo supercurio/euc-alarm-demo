@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
+import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.utils.RecordingProvider
@@ -37,7 +38,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     private var advertisement: BleAdvertisement? = null
     private var doReplay = false
 
-     val isSupported by lazy {
+    val isSupported by lazy {
         BluetoothAdapter.getDefaultAdapter().bluetoothLeAdvertiser != null
     }
 

@@ -1,4 +1,4 @@
-package supercurio.eucalarm.ble
+package supercurio.eucalarm.ble.wrappers
 
 import android.bluetooth.*
 import android.content.Context
