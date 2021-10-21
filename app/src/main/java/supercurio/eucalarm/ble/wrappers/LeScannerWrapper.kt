@@ -13,7 +13,7 @@ import kotlin.coroutines.suspendCoroutine
 
 class LeScannerWrapper {
 
-    private lateinit var callback: ScanCallback
+    private var callback: ScanCallback? = null
     private var continuation: Continuation<ScannerWrapperResult>? = null
 
     suspend fun scan(
@@ -42,7 +42,7 @@ class LeScannerWrapper {
 
     fun stop() {
         Log.i(TAG, "stop")
-        scanner.stopScan(callback)
+        callback?.let { scanner.stopScan(it) }
         continuation?.resume(ScannerWrapperResult.Success)
         continuation = null
     }
