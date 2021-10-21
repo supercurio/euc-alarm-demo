@@ -45,14 +45,14 @@ class AlertFeedback(
     private var currentVibrationPattern: LongArray? = null
 
     fun setup(context: Context, scope: CoroutineScope) {
-        Log.i(TAG, "Setup instance $instance")
+        Log.i(TAG, "Setup instance")
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
 
         scope.launch {
             wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
-                    true -> play()
+                    true -> playAlert()
                     false -> stopAlert()
                 }
             }
@@ -91,7 +91,7 @@ class AlertFeedback(
         setupComplete = true
     }
 
-    fun play() {
+    fun playAlert() {
         if (!setupComplete) return
         if (!tracksRunning) return
         isPlaying = true
@@ -117,12 +117,13 @@ class AlertFeedback(
 
     fun toggle() {
         if (!setupComplete) return
-        if (!isPlaying) play() else stopAlert()
+        if (!isPlaying) playAlert() else stopAlert()
     }
 
     fun shutdown() {
         Log.i(TAG, "Shutdown")
         stopTracks()
+        instance = null
     }
 
     /**
@@ -138,6 +139,7 @@ class AlertFeedback(
     }
 
     private fun stopTracks() {
+        Log.i(TAG, "Stop Tracks")
         if (!tracksRunning) return
         tracksRunning = false
 

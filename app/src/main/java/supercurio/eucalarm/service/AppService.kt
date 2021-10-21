@@ -149,7 +149,6 @@ class AppService : Service() {
         private fun Context.isServiceRunning(): Boolean {
             val am = getSystemService<ActivityManager>()!!
             am.getRunningServices(Integer.MAX_VALUE).forEach { serviceInfo ->
-                Log.i(TAG, "service info: $serviceInfo")
                 if (serviceInfo.service.className == AppService::class.qualifiedName) return true
             }
             return false

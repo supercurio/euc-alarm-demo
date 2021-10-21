@@ -17,6 +17,9 @@ object Notifications {
 
     var muted = false
 
+    private var currentMessage = ""
+    private var prevMessage = ""
+
     private const val NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID = "AppService"
 
     fun createNotificationChannels(context: Context) {
@@ -59,9 +62,16 @@ object Notifications {
     fun updateOngoing(context: Context, title: String) {
         if (muted) return
 
+        prevMessage = currentMessage
+
         Log.i(TAG, "Update notification with title: $title")
         context.getSystemService<NotificationManager>()!!
             .notify(AppService.NOTIF_ID, foregroundServiceNotificationBuilder(context, title))
+        currentMessage = title
+    }
+
+    fun rollbackOngoing(context: Context) {
+        updateOngoing(context, prevMessage)
     }
 
     private const val TAG = "Notifications"
