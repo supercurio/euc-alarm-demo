@@ -65,6 +65,7 @@ class WheelConnection @Inject constructor(
     fun reconnectDevice(deviceAddr: String) {
         setDevicesNamesCache()
         registerBtStateChangeReceiver()
+        findReconnectWheel.reconnectToAddr = deviceAddr // to help deviceName resolve
         connectionState = BleConnectionState.SCANNING
         findReconnectWheel.findAndReconnect(context, deviceAddr)
     }

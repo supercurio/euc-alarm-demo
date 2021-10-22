@@ -11,7 +11,6 @@ import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 
 class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
-
     private var scope: CoroutineScope? = null
     private var scannerWrapper = LeScannerWrapper()
     private var isScanning = false

@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * TODO:
+     *  * Check if Location is enabled
      *  * look into Bluetooth connection receiver to sync with EUC World / WheelLog
      */
 
