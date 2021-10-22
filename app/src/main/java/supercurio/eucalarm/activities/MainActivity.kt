@@ -1,7 +1,10 @@
 package supercurio.eucalarm.activities
 
 import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -28,6 +31,7 @@ import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
+import supercurio.eucalarm.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ClosedState
 import supercurio.eucalarm.ble.*
@@ -52,12 +56,21 @@ class MainActivity : ComponentActivity() {
 
     private val activityScope = MainScope() + CoroutineName(TAG)
 
-    private val wheelData = WheelDataStateFlows.getInstance()
+    @Inject
+    lateinit var appLifeCycle: AppLifecycle
+
+    @Inject
+    lateinit var wheelData: WheelDataStateFlows
 
     @Inject
     lateinit var appStateStore: AppStateStore
-    private lateinit var powerManagement: PowerManagement
-    private lateinit var wheelConnection: WheelConnection
+
+    @Inject
+    lateinit var powerManagement: PowerManagement
+
+    @Inject
+    lateinit var wheelConnection: WheelConnection
+
     private lateinit var alert: AlertFeedback
     private lateinit var wheelBleRecorder: WheelBleRecorder
     private lateinit var simulator: WheelBleSimulator
@@ -69,12 +82,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        AppService.enable(applicationContext, true)
+        appLifeCycle.on()
 
         if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
 
-        powerManagement = PowerManagement.getInstance(applicationContext)
-        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement, appStateStore)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
@@ -85,6 +96,8 @@ class MainActivity : ComponentActivity() {
         }
 
         findWheels = FindWheels(applicationContext)
+
+        registerReceiver(shutdownReceiver, IntentFilter(AppService.STOP_BROADCAST))
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -95,6 +108,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         Log.i(TAG, "onDestroy")
 
+        unregisterReceiver(shutdownReceiver)
         findWheels.stop()
         player.stop()
         activityScope.cancel()
@@ -182,10 +196,7 @@ class MainActivity : ComponentActivity() {
                                         Text(
                                             modifier = Modifier.clickable(onClick = {
                                                 dismiss()
-                                                wheelConnection.connectDevice(
-                                                    applicationContext,
-                                                    it
-                                                )
+                                                wheelConnection.connectDevice(it)
                                             }),
                                             text = "${it.device.name}\n${it.device.address}: " +
                                                     "found: ${it.from}${it.rssi?.let { ", ${it}dBm" } ?: ""}"
@@ -228,7 +239,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Button(onClick = {
-                    wheelConnection.disconnectDevice(applicationContext)
+                    wheelConnection.disconnectDevice()
                     appStateStore.setState(ClosedState)
                 }) { Text("Disconnect ${wheelConnection.deviceName} ($stateText)") }
             }
@@ -372,9 +383,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun manualStop() {
-        AppService.enable(applicationContext, false)
+        appLifeCycle.off()
         finish()
-        appStateStore.setState(ClosedState)
     }
 
     private fun getSharedRecordingFile(intent: Intent) {
@@ -388,6 +398,12 @@ class MainActivity : ComponentActivity() {
             out.close()
             Log.i(TAG, "Copied: $copied bytes")
             it.close()
+        }
+    }
+
+    private val shutdownReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AppService.STOP_BROADCAST) finish()
         }
     }
 

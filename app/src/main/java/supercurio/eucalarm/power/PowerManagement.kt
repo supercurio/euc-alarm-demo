@@ -5,8 +5,12 @@ import android.content.Context
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.content.getSystemService
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class PowerManagement(context: Context) {
+@Singleton
+class PowerManagement @Inject constructor(@ApplicationContext context: Context) {
 
     private val pm = context.getSystemService<PowerManager>()!!
     private val activeWakelocks = mutableMapOf<String, PowerManager.WakeLock>()
@@ -42,10 +46,5 @@ class PowerManagement(context: Context) {
 
     companion object {
         private const val TAG = "PowerManagement"
-
-        private var instance: PowerManagement? = null
-
-        fun getInstance(context: Context) =
-            instance ?: PowerManagement(context).also { instance = it }
     }
 }

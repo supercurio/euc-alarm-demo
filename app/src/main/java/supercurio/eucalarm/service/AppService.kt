@@ -32,12 +32,18 @@ class AppService : Service() {
 
     override fun onBind(intent: Intent): Binder? = null
 
-    private val wheelData = WheelDataStateFlows.getInstance()
+    @Inject
+    lateinit var wheelData: WheelDataStateFlows
 
     @Inject
     lateinit var appStateStore: AppStateStore
-    private lateinit var powerManagement: PowerManagement
-    private lateinit var wheelConnection: WheelConnection
+
+    @Inject
+    lateinit var powerManagement: PowerManagement
+
+    @Inject
+    lateinit var wheelConnection: WheelConnection
+
     private lateinit var alert: AlertFeedback
     private lateinit var wheelBleRecorder: WheelBleRecorder
     private lateinit var simulator: WheelBleSimulator
@@ -46,9 +52,6 @@ class AppService : Service() {
         super.onCreate()
 
         Log.i(TAG, "onCreate")
-        Notifications.muted = false
-        powerManagement = PowerManagement.getInstance(applicationContext)
-        wheelConnection = WheelConnection.getInstance(wheelData, powerManagement, appStateStore)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         alert.setup(applicationContext, serviceScope)
 
@@ -77,12 +80,12 @@ class AppService : Service() {
         when (val state = appStateStore.loadState()) {
             is ConnectedState -> {
                 Log.i(TAG, "Reconnect device: ${state.deviceAddr}")
-                wheelConnection.reconnectDevice(applicationContext, state.deviceAddr)
+                wheelConnection.reconnectDevice(state.deviceAddr)
             }
 
             is RecordingState -> {
                 Log.i(TAG, "Reconnect device and resume recording")
-                wheelConnection.reconnectDevice(applicationContext, state.deviceAddr)
+                wheelConnection.reconnectDevice(state.deviceAddr)
                 wheelBleRecorder.start(applicationContext, state.deviceAddr)
             }
         }
@@ -92,14 +95,11 @@ class AppService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
-        Notifications.muted = true
         unregisterReceiver(shutdownReceiver)
 
         wheelBleRecorder.shutDown()
-        wheelConnection.shutdown(applicationContext)
         simulator.shutdown()
         alert.shutdown()
-        powerManagement.releaseAll()
         serviceScope.cancel()
 
         startedBySystem = true

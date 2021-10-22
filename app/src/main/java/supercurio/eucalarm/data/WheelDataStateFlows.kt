@@ -1,8 +1,11 @@
 package supercurio.eucalarm.data
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class WheelDataStateFlows : WheelDataInterface {
+@Singleton
+class WheelDataStateFlows @Inject constructor() : WheelDataInterface {
 
     /**
      * The last time wheel data was successfully updated
@@ -65,10 +68,5 @@ class WheelDataStateFlows : WheelDataInterface {
         }
 
     override fun gotNewData(end: Boolean) = Unit
-
-    companion object {
-        private var instance: WheelDataStateFlows? = null
-        fun getInstance() = instance ?: WheelDataStateFlows().also { instance = it }
-    }
 
 }

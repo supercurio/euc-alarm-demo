@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
 import androidx.core.content.getSystemService
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -14,16 +15,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
-import supercurio.eucalarm.data.WheelDataInterface
+import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import supercurio.eucalarm.power.PowerManagement
 import java.util.*
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class WheelConnection(
-    private val wheelData: WheelDataInterface,
+@Singleton
+class WheelConnection @Inject constructor(
+    private val wheelData: WheelDataStateFlows,
     private val powerManagement: PowerManagement,
     private val appStateStore: AppStateStore,
+    @ApplicationContext private val context: Context
 ) {
     private var connectionState = BleConnectionState.UNKNOWN
         set(value) {
@@ -57,18 +62,18 @@ class WheelConnection(
     private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNKNOWN)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
-    fun reconnectDevice(context: Context, deviceAddr: String) {
-        setDevicesNamesCache(context)
-        registerBtStateChangeReceiver(context)
+    fun reconnectDevice(deviceAddr: String) {
+        setDevicesNamesCache()
+        registerBtStateChangeReceiver()
         connectionState = BleConnectionState.SCANNING
         findReconnectWheel.findAndReconnect(context, deviceAddr)
     }
 
-    fun connectDevice(context: Context, inputDeviceToConnect: DeviceFound) {
+    fun connectDevice(inputDeviceToConnect: DeviceFound) {
         Log.i(TAG, "connectDevice($inputDeviceToConnect)")
         findReconnectWheel.stopLeScan()
 
-        setDevicesNamesCache(context)
+        setDevicesNamesCache()
 
         // set app state
         appStateStore.setState(ConnectedState(inputDeviceToConnect.device.address))
@@ -93,7 +98,7 @@ class WheelConnection(
         shouldStayConnected = true
         powerManagement.getLock(TAG)
 
-        registerBtStateChangeReceiver(context)
+        registerBtStateChangeReceiver()
 
         val btManager = context.getSystemService<BluetoothManager>()!!
 
@@ -103,7 +108,7 @@ class WheelConnection(
             BluetoothGatt.STATE_CONNECTED -> {
                 if (_gatt == null) {
                     connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
-                    doConnect(context, deviceToConnect.device)
+                    doConnect(deviceToConnect.device)
                 }
             }
 
@@ -112,12 +117,12 @@ class WheelConnection(
             // disconnecting or disconnected, connect again
             BluetoothGatt.STATE_DISCONNECTING, BluetoothGatt.STATE_DISCONNECTED -> {
                 connectionState = BleConnectionState.CONNECTING
-                doConnect(context, deviceToConnect.device)
+                doConnect(deviceToConnect.device)
             }
         }
     }
 
-    fun disconnectDevice(context: Context) {
+    fun disconnectDevice() {
         if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
             connectionState = BleConnectionState.DISCONNECTED
 
@@ -141,10 +146,10 @@ class WheelConnection(
             BleConnectionState.UNKNOWN
     }
 
-    fun shutdown(context: Context) {
+    // FIXME: Find a way to call shutdown at the end of the lifecycle
+    fun shutdown() {
         Log.i(TAG, "Shutdown")
-        disconnectDevice(context)
-        instance = null
+        disconnectDevice()
     }
 
     fun setupGotwayType() {
@@ -160,12 +165,12 @@ class WheelConnection(
         }
     }
 
-    private fun doConnect(context: Context, device: BluetoothDevice) {
+    private fun doConnect(device: BluetoothDevice) {
         _gatt = device.connectGatt(context, false, gattCallback)
         devicesNamesCache?.remember(device)
     }
 
-    private fun registerBtStateChangeReceiver(context: Context) {
+    private fun registerBtStateChangeReceiver() {
         if (!btStateChangeReceiver.registered) {
             context.registerReceiver(
                 btStateChangeReceiver,
@@ -288,21 +293,12 @@ class WheelConnection(
         gatt.writeDescriptor(desc)
     }
 
-    private fun setDevicesNamesCache(context: Context) =
+    private fun setDevicesNamesCache() =
         devicesNamesCache ?: DevicesNamesCache(context).also { devicesNamesCache = it }
 
     companion object {
         private const val TAG = "WheelConnection"
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
 
-        private var instance: WheelConnection? = null
-
-        fun getInstance(
-            wheelData: WheelDataInterface,
-            powerManagement: PowerManagement,
-            appStateStore: AppStateStore
-        ) = instance ?: WheelConnection(wheelData, powerManagement, appStateStore).also {
-            instance = it
-        }
     }
 }
