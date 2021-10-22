@@ -249,7 +249,8 @@ class MainActivity : ComponentActivity() {
 
             Button(onClick = { manualStop() }) { Text("Stop and exit app") }
 
-            Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
+            if (bleConnectionState.canDisconnect)
+                Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
 
             if (!bleConnectionState.canDisconnect) {
                 val playingState by player.playingState.collectAsState()

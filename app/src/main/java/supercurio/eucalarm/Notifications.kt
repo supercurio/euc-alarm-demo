@@ -45,11 +45,15 @@ class Notifications @Inject constructor(@ApplicationContext private val context:
                 NotificationChannel(
                     NOTIFICATION_CHANNEL_ALERT_ID,
                     context.getString(R.string.alert_channel_name),
-                    NotificationManager.IMPORTANCE_HIGH
-                )
+                    NotificationManager.IMPORTANCE_HIGH,
+                ).apply {
+                    setBypassDnd(true)
+                    enableVibration(false)
+                    enableLights(false)
+                    setShowBadge(false)
+                },
             )
 
-            val nm = context.getSystemService<NotificationManager>()!!
             channels.forEach { nm.createNotificationChannel(it) }
         }
     }
