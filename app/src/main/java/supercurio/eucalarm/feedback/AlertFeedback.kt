@@ -180,12 +180,21 @@ class AlertFeedback @Inject constructor(
         keepAliveTrack = null
     }
 
-    private fun requestAudioFocus() =
-        audioManager.requestAudioFocus(
-            afChangeListener,
-            AudioManager.STREAM_MUSIC,
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
-        )
+    private fun requestAudioFocus() {
+        val focusGain = AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest
+                .Builder(focusGain)
+                .build()
+            audioManager.requestAudioFocus(request)
+        } else {
+            audioManager.requestAudioFocus(
+                afChangeListener,
+                AudioManager.STREAM_MUSIC,
+                focusGain
+            )
+        }
+    }
 
     private fun releaseAudioFocus() {
         audioManager.abandonAudioFocus(afChangeListener)
