@@ -2,6 +2,7 @@ package supercurio.eucalarm.feedback
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
 import android.util.Log
@@ -13,7 +14,7 @@ object AudioHelper {
 
     private val audioAttributes
         get() = AudioAttributes.Builder()
-            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+            .setLegacyStreamType(AudioManager.STREAM_MUSIC)
             .build()
 
     private val audioFormat
