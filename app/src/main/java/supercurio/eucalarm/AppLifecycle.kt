@@ -45,6 +45,8 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
 
     fun on() {
         if (state) return
+        state = true
+
         wheelData.clear()
         notifications.muted = false
         alert.setup()
@@ -55,6 +57,8 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
 
     fun off() {
         if (state) return
+        state = false
+
         notifications.muted = true
 
         simulator.shutdown()

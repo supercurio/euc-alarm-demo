@@ -34,17 +34,15 @@ class AlertFeedback @Inject constructor(
 
     /*
      * TODO:
-     *  - Listen to changes in audio output configuration and reconfigure the AudioTrack
-     *    with lowest-latency parameters
-     *  - Re-generate alarm audio buffer according to the new samplerate
+     *  - Audio alert on disconnection
      */
 
     private val scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     private lateinit var audioManager: AudioManager
     private lateinit var vibrator: Vibrator
-    private lateinit var alertTrack: AudioTrack
-    private lateinit var keepAliveTrack: AudioTrack
+    private var alertTrack: AudioTrack? = null
+    private var keepAliveTrack: AudioTrack? = null
 
     private var setupComplete = false
     private var tracksRunning = false
@@ -56,6 +54,8 @@ class AlertFeedback @Inject constructor(
         Log.i(TAG, "Setup instance")
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
+
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
 
         scope.launch {
             wheelDataStateFlows.beeperFlow.collect {
@@ -96,6 +96,9 @@ class AlertFeedback @Inject constructor(
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         context.registerReceiver(screenOffReceiver, filter)
 
+        logAudioInfo()
+
+
         setupComplete = true
     }
 
@@ -108,9 +111,11 @@ class AlertFeedback @Inject constructor(
 
         if (VIBRATE) vibratePattern(alertVibrationPattern)
 
-        alertTrack.stop()
-        alertTrack.setLoopPoints(0, BUFFER_FRAMES, -1)
-        alertTrack.play()
+        alertTrack?.setVolume(0f)
+        alertTrack?.stop()
+        alertTrack?.setLoopPoints(0, BUFFER_FRAMES, -1)
+        alertTrack?.setVolume(1f)
+        alertTrack?.play()
         notifications.updateOngoing("Alert!")
         notifications.notifyAlert()
     }
@@ -121,7 +126,8 @@ class AlertFeedback @Inject constructor(
         releaseAudioFocus()
 
         if (VIBRATE) stopVibration()
-        alertTrack.pause()
+        alertTrack?.setVolume(0f)
+        alertTrack?.pause()
         isPlaying = false
         notifications.rollbackOngoing()
     }
@@ -134,6 +140,7 @@ class AlertFeedback @Inject constructor(
     fun shutdown() {
         Log.i(TAG, "Shutdown")
         stopTracks()
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         scope.cancel()
         notifications.cancelAlerts()
     }
@@ -143,6 +150,7 @@ class AlertFeedback @Inject constructor(
      */
 
     private fun runTracks() {
+        Log.i(TAG, "Run tracks")
         if (tracksRunning) return
         tracksRunning = true
 
@@ -157,18 +165,19 @@ class AlertFeedback @Inject constructor(
 
         stopAlert()
 
-        alertTrack.pause()
-        keepAliveTrack.pause()
+        alertTrack?.pause()
+        keepAliveTrack?.pause()
 
-        alertTrack.flush()
-        keepAliveTrack.flush()
+        alertTrack?.flush()
+        keepAliveTrack?.flush()
 
-        alertTrack.stop()
-        keepAliveTrack.stop()
+        alertTrack?.stop()
+        keepAliveTrack?.stop()
 
-        alertTrack.release()
-        keepAliveTrack.release()
-
+        alertTrack?.release()
+        alertTrack = null
+        keepAliveTrack?.release()
+        keepAliveTrack = null
     }
 
     private fun requestAudioFocus() =
@@ -182,14 +191,21 @@ class AlertFeedback @Inject constructor(
         audioManager.abandonAudioFocus(afChangeListener)
     }
 
+    private fun reconfigureAudioTracks() {
+        Log.i(TAG, "Reconfigure audio tracks for new audio output")
+        stopTracks()
+        runTracks()
+    }
+
     private fun setupAlertTrack(): AudioTrack {
+        Log.i(TAG, "setupAlertTrack")
+
         val audioAttributes = AudioAttributes.Builder()
             .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
 
         val audioFormat = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setSampleRate(SAMPLE_RATE)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
             .build()
 
@@ -203,39 +219,22 @@ class AlertFeedback @Inject constructor(
                     setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             }
             .build()
-            .apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    addOnRoutingChangedListener(
-                        { routing ->
-                            Log.i(
-                                TAG,
-                                "routed device: ${audioDeviceInfoText(routing.routedDevice)}, " +
-                                        "preferredDevice: ${audioDeviceInfoText(routing.routedDevice)}"
-                            )
-                        }, null
-                    )
-                } else {
-                    addOnRoutingChangedListener(AudioTrack.OnRoutingChangedListener { routing ->
-                        Log.i(
-                            TAG, "routed device: ${audioDeviceInfoText(routing.routedDevice)}, " +
-                                    "preferredDevice: ${audioDeviceInfoText(routing.routedDevice)}"
-                        )
-                    }, null)
-                }
-            }
 
-
+        Log.i(TAG, "Got Track samplerate: ${track.sampleRate}")
         val bufferSizeInFrames = track.bufferSizeInFrames
 
         Log.i(TAG, "buffer size in frames: $bufferSizeInFrames")
 
-        val buf = getAudioBuffer(FREQUENCY, bufferSizeInFrames, SAMPLE_RATE)
+        val buf1 = getAudioBuffer(FREQUENCY1, 0.8, bufferSizeInFrames, track.sampleRate)
+        val buf2 = getAudioBuffer(FREQUENCY2, 0.2, bufferSizeInFrames, track.sampleRate)
+        val buf = mix(buf1, buf2)
         track.write(buf, 0, buf.size)
 
         return track
     }
 
     private fun setupKeepAliveTrack(): AudioTrack {
+        Log.i(TAG, "setupKeepAliveTrack")
         val frames = 1024
 
         val audioAttributes = AudioAttributes.Builder()
@@ -244,7 +243,6 @@ class AlertFeedback @Inject constructor(
 
         val audioFormat = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setSampleRate(SAMPLE_RATE)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
             .build()
 
@@ -265,18 +263,22 @@ class AlertFeedback @Inject constructor(
 
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+
             addedDevices?.forEach {
-                Log.i(TAG, "Added devices ${audioDeviceInfoText(it)}")
+                Log.i(TAG, "Added device ${audioDeviceInfoText(it)}")
+                if (tracksRunning && it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+                    reconfigureAudioTracks()
             }
         }
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
             removedDevices?.forEach {
-                Log.i(TAG, "Removed device devices ${audioDeviceInfoText(it)}")
+                Log.i(TAG, "Removed device device ${audioDeviceInfoText(it)}")
+                if (tracksRunning && it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+                    reconfigureAudioTracks()
             }
         }
     }
-
 
     private fun onConnectionLoss(status: Boolean) {
         Log.i(TAG, "onConnectionLoss: $status")
@@ -306,7 +308,7 @@ class AlertFeedback @Inject constructor(
         }
     }
 
-    private fun stuff(context: Context) {
+    private fun logAudioInfo() {
 
         val lowLatency = context.packageManager
             .hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)
@@ -323,8 +325,6 @@ class AlertFeedback @Inject constructor(
             Log.i(TAG, audioDeviceInfoText(info))
         }
 
-        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
-
         Log.i(
             TAG,
             "lowLatency: $lowLatency, " +
@@ -332,18 +332,34 @@ class AlertFeedback @Inject constructor(
                     "outputSampleRate: $outputSampleRate, " +
                     "outputFramesPerBuffer: $outputFramesPerBuffer"
         )
+
     }
 
-    private fun getAudioBuffer(frequency: Int, len: Int, fs: Int): ShortArray {
-        val buf = ShortArray(len)
+    private fun getAudioBuffer(
+        frequency: Double,
+        multiplier: Double,
+        len: Int,
+        fs: Int
+    ): FloatArray {
+        val buf = FloatArray(len)
         val twoPi = 8.0 * atan(1.0)
         var phase = 0.0
 
         for (i in 0 until len) {
-            buf[i] = (sin(phase) * Short.MAX_VALUE).roundToInt().toShort()
-            phase += twoPi * frequency / fs
+            val last = (len - 1).toDouble()
+            val amplitude = when {
+                // i < (len / 10) -> i / len.toDouble() * 10.0 // fade in
+                // i > (len / 2) -> i / 2 // fade out and blank
 
-            if (i > len * 0.5 && phase < 0.2) break
+                i < (last * 0.01) -> transition(0.0, last * 0.01, i.toDouble() - 1) // fade in
+                i > (last * 0.5) -> (1 - transition(last * 0.5, last * 0.53, i.toDouble()))
+                    .coerceAtLeast(0.0) // fade out
+
+                else -> 1.0
+            }
+
+            buf[i] = (sin(phase) * amplitude * multiplier).toFloat()
+            phase += twoPi * frequency / fs
 
             if (phase > twoPi) {
                 phase -= twoPi
@@ -351,6 +367,19 @@ class AlertFeedback @Inject constructor(
         }
 
         return buf
+    }
+
+    fun mix(vararg buffers: FloatArray): ShortArray {
+        val out = ShortArray(BUFFER_FRAMES)
+
+        buffers.forEach { buffer ->
+            buffer.forEachIndexed { index, value ->
+                out[index] =
+                    (out[index] + (value * Short.MAX_VALUE).roundToInt()).toShort()
+            }
+        }
+
+        return out
     }
 
     private val screenOffReceiver = object : BroadcastReceiver() {
@@ -395,12 +424,16 @@ class AlertFeedback @Inject constructor(
                 "sampleRates: ${info.sampleRates.asList()}, encodings: ${info.encodings.asList()}"
     }
 
+    private fun transition(a: Double, b: Double, value: Double): Double {
+        return (value - a) / (b - a)
+    }
+
     companion object {
         private const val TAG = "AlertFeedback"
 
         private const val BUFFER_FRAMES = 1024 * 5
-        private const val SAMPLE_RATE = 44100
-        private const val FREQUENCY = 1000
+        private const val FREQUENCY1 = 1046.5022612023945
+        private const val FREQUENCY2 = 523.2511306011972
         private const val VIBRATE = true
 
         private val alertVibrationPattern = longArrayOf(0, 55, 20)
