@@ -4,10 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
+import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.utils.directBootContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class AppStateStore(appContext: Context) {
+@Singleton
+class AppStateStore @Inject constructor(@ApplicationContext private val appContext: Context) {
     private val prefs: SharedPreferences = appContext
         .directBootContext
         .getSharedPreferences("app_state", Context.MODE_PRIVATE)
@@ -31,16 +35,14 @@ class AppStateStore(appContext: Context) {
         Log.i(TAG, "State set to $value")
     }
 
-    fun restoreState(appContext: Context) {
-        val context = appContext.directBootContext
-
+    fun restoreState() {
         loadState()
         Log.i(TAG, "Restore state")
 
         when (appState) {
-            is ClosedState -> AppService.enable(context, false)
-            is ConnectedState -> AppService.enable(context, true)
-            is RecordingState -> AppService.enable(context, true)
+            is ClosedState -> AppService.enable(appContext, false)
+            is ConnectedState -> AppService.enable(appContext, true)
+            is RecordingState -> AppService.enable(appContext, true)
             else -> Unit
         }
     }
@@ -60,12 +62,6 @@ class AppStateStore(appContext: Context) {
 
     companion object {
         private const val TAG = "AppStateStore"
-
-        private var instance: AppStateStore? = null
-
-        fun getInstance(context: Context) =
-            instance ?: AppStateStore(context).also { instance = it }
-
 
         const val UNDEFINED_SATE = "undefined"
         const val CLOSED_SATE = "closed"

@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.os.Binder
 import android.util.Log
 import androidx.core.content.getSystemService
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import supercurio.eucalarm.Notifications
@@ -23,14 +24,18 @@ import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AppService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     override fun onBind(intent: Intent): Binder? = null
 
     private val wheelData = WheelDataStateFlows.getInstance()
-    private lateinit var appStateStore: AppStateStore
+
+    @Inject
+    lateinit var appStateStore: AppStateStore
     private lateinit var powerManagement: PowerManagement
     private lateinit var wheelConnection: WheelConnection
     private lateinit var alert: AlertFeedback
@@ -39,9 +44,9 @@ class AppService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
         Log.i(TAG, "onCreate")
         Notifications.muted = false
-        appStateStore = AppStateStore.getInstance(applicationContext)
         powerManagement = PowerManagement.getInstance(applicationContext)
         wheelConnection = WheelConnection.getInstance(wheelData, powerManagement, appStateStore)
         alert = AlertFeedback.getInstance(wheelData, wheelConnection)
@@ -53,7 +58,7 @@ class AppService : Service() {
         registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
 
         // when the service is started by the system after being killed or a crash
-        if (startedBySystem) appStateStore.restoreState(applicationContext)
+        if (startedBySystem) appStateStore.restoreState()
 
         updateNotificationBasedOnState()
     }

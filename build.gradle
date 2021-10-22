@@ -2,6 +2,7 @@
 buildscript {
     ext {
         compose_version = '1.0.4'
+        hilt_version = '2.39.1'
         use_protobuf_lite = true
         use_hunter_timing = false
         use_hunter_debug = false
@@ -19,6 +20,9 @@ buildscript {
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
+
+        // Hilt
+        classpath "com.google.dagger:hilt-android-gradle-plugin:$hilt_version"
 
         // https://github.com/Leaking/Hunter/blob/1bc2b98c8b51ae19daf2a59c446269051657bdc2/README_hunter_debug.md
 

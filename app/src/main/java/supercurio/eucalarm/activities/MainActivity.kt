@@ -26,6 +26,7 @@ import androidx.core.content.FileProvider
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ClosedState
@@ -38,8 +39,10 @@ import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.directBootContext
 import java.text.DecimalFormat
+import javax.inject.Inject
 
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     /**
@@ -51,7 +54,8 @@ class MainActivity : ComponentActivity() {
 
     private val wheelData = WheelDataStateFlows.getInstance()
 
-    private lateinit var appStateStore: AppStateStore
+    @Inject
+    lateinit var appStateStore: AppStateStore
     private lateinit var powerManagement: PowerManagement
     private lateinit var wheelConnection: WheelConnection
     private lateinit var alert: AlertFeedback
@@ -63,7 +67,7 @@ class MainActivity : ComponentActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        appStateStore = AppStateStore(applicationContext)
+        super.onCreate(savedInstanceState)
 
         AppService.enable(applicationContext, true)
 
@@ -76,7 +80,6 @@ class MainActivity : ComponentActivity() {
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
         player = WheelBlePlayer(wheelConnection)
 
-        super.onCreate(savedInstanceState)
         setContent {
             PermissionsLayout {}
         }

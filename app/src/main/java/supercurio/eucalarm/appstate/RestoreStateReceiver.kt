@@ -5,8 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class RestoreStateReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var appStateStore: AppStateStore
+
     override fun onReceive(context: Context, intent: Intent) {
         Log.i(TAG, "onReceive: ${intent.action}")
 
@@ -17,9 +24,8 @@ class RestoreStateReceiver : BroadcastReceiver() {
             intent.action == Intent.ACTION_BOOT_COMPLETED
         ) return
 
-        AppStateStore
-            .getInstance(context)
-            .restoreState(context)
+
+        appStateStore.restoreState()
     }
 
     companion object {

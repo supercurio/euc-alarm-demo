@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'com.google.protobuf'
+    id 'kotlin-kapt'
+    id 'dagger.hilt.android.plugin'
 }
 
 if (use_hunter_debug) apply plugin: 'hunter-debug'
@@ -64,6 +66,10 @@ dependencies {
 
     // Kotlin coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2'
+
+    // Hilt
+    implementation "com.google.dagger:hilt-android:$hilt_version"
+    kapt "com.google.dagger:hilt-android-compiler:$hilt_version"
 
     if (use_protobuf_lite) {
         // Protobuf lite
