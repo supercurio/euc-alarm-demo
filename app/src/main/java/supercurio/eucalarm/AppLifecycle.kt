@@ -56,7 +56,7 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
 
 
     fun off() {
-        if (state) return
+        if (!state) return
         state = false
 
         notifications.muted = true

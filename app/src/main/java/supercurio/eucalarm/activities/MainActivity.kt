@@ -407,7 +407,7 @@ class MainActivity : ComponentActivity() {
 
     private val shutdownReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == AppService.STOP_BROADCAST) finish()
+            if (intent.action == AppService.STOP_BROADCAST) manualStop()
         }
     }
 
