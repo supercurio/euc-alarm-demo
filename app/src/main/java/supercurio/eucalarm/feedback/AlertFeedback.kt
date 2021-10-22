@@ -59,7 +59,6 @@ class AlertFeedback @Inject constructor(
 
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
 
-        Log.i(TAG, "Scope: $scope")
         scope.launch {
             wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
