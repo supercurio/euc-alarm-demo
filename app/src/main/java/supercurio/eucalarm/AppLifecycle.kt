@@ -2,12 +2,10 @@ package supercurio.eucalarm
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.plus
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ClosedState
+import supercurio.eucalarm.ble.WheelBleRecorder
+import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
@@ -34,12 +32,21 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
     @Inject
     lateinit var alert: AlertFeedback
 
+    @Inject
+    lateinit var wheelBleRecorder: WheelBleRecorder
+
+    @Inject
+    lateinit var simulator: WheelBleSimulator
+
+    @Inject
+    lateinit var notifications: Notifications
+
     private var state = false
 
     fun on() {
         if (state) return
         wheelData.clear()
-        Notifications.muted = false
+        notifications.muted = false
         alert.setup()
 
         AppService.enable(context, true)
@@ -48,13 +55,16 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
 
     fun off() {
         if (state) return
-        Notifications.muted = true
+        notifications.muted = true
 
+        simulator.shutdown()
         wheelConnection.shutdown()
         powerManagement.releaseAll()
         wheelData.clear()
+        wheelBleRecorder.shutDown()
         alert.shutdown()
         AppService.enable(context, false)
         appStateStore.setState(ClosedState)
     }
+
 }

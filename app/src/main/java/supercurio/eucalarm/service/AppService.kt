@@ -12,6 +12,7 @@ import androidx.core.content.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import supercurio.eucalarm.AppLifecycle
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
 import supercurio.eucalarm.appstate.AppStateStore
@@ -19,7 +20,6 @@ import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.RecordingState
 import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelBleRecorder
-import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
@@ -31,6 +31,9 @@ class AppService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     override fun onBind(intent: Intent): Binder? = null
+
+    @Inject
+    lateinit var appLifecycle: AppLifecycle
 
     @Inject
     lateinit var wheelData: WheelDataStateFlows
@@ -46,16 +49,18 @@ class AppService : Service() {
 
     @Inject
     lateinit var alert: AlertFeedback
-    private lateinit var wheelBleRecorder: WheelBleRecorder
-    private lateinit var simulator: WheelBleSimulator
+
+    @Inject
+    lateinit var wheelBleRecorder: WheelBleRecorder
+
+    @Inject
+    lateinit var notifications: Notifications
+
 
     override fun onCreate() {
         super.onCreate()
 
         Log.i(TAG, "onCreate")
-
-        wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
-        simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
 
         registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
 
@@ -68,12 +73,9 @@ class AppService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand")
 
-        val notif = Notifications.foregroundServiceNotificationBuilder(
-            applicationContext,
-            getString(R.string.app_name)
-        )
+        val notif = notifications.foregroundServiceNotificationBuilder(getString(R.string.app_name))
 
-        startForeground(NOTIF_ID, notif)
+        startForeground(Notifications.SERVICE_ID, notif)
 
         // restore app state
         when (val state = appStateStore.loadState()) {
@@ -96,8 +98,6 @@ class AppService : Service() {
         Log.i(TAG, "onDestroy")
         unregisterReceiver(shutdownReceiver)
 
-        wheelBleRecorder.shutDown()
-        simulator.shutdown()
         serviceScope.cancel()
 
         startedBySystem = true
@@ -106,7 +106,7 @@ class AppService : Service() {
 
     private val shutdownReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == STOP_BROADCAST) enable(context, false)
+            if (intent.action == STOP_BROADCAST) appLifecycle.off()
         }
     }
 
@@ -121,14 +121,13 @@ class AppService : Service() {
                 else -> "Not connected"
             }
 
-            Notifications.updateOngoing(applicationContext, title)
+            notifications.updateOngoing(title)
         }
     }
 
     companion object {
         private const val TAG = "AppService"
 
-        const val NOTIF_ID = 1
         const val STOP_BROADCAST = "StopAndExitService"
 
         private var startedBySystem = true

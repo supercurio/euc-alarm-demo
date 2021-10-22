@@ -17,8 +17,11 @@ import supercurio.eucalarm.appstate.RecordingState
 import supercurio.eucalarm.utils.*
 import supercurio.wheeldata.recording.*
 import java.io.BufferedOutputStream
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class WheelBleRecorder(
+@Singleton
+class WheelBleRecorder @Inject constructor(
     private val connection: WheelConnection,
     private val appStateStore: AppStateStore
 ) {
@@ -67,7 +70,6 @@ class WheelBleRecorder(
         startTime = null
         recorderScope?.cancel()
         recorderScope = null
-        // always re-use the same instance after clearing it
     }
 
     private fun stop() {
@@ -229,10 +231,6 @@ class WheelBleRecorder(
 
     companion object {
         private const val TAG = "WheelBleRecorder"
-
-        private var instance: WheelBleRecorder? = null
-        fun getInstance(connection: WheelConnection, appStateStore: AppStateStore) =
-            instance ?: WheelBleRecorder(connection, appStateStore).also { instance = it }
 
         private const val WRITES_LOGGING = false
     }

@@ -14,6 +14,7 @@ import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
@@ -28,6 +29,7 @@ class AlertFeedback @Inject constructor(
     @ApplicationContext private val context: Context,
     private val wheelDataStateFlows: WheelDataStateFlows,
     private val wheelConnection: WheelConnection,
+    private val notifications: Notifications,
 ) {
 
     /*
@@ -109,6 +111,8 @@ class AlertFeedback @Inject constructor(
         alertTrack.stop()
         alertTrack.setLoopPoints(0, BUFFER_FRAMES, -1)
         alertTrack.play()
+        notifications.updateOngoing("Alert!")
+        notifications.notifyAlert()
     }
 
     fun stopAlert() {
@@ -119,6 +123,7 @@ class AlertFeedback @Inject constructor(
         if (VIBRATE) stopVibration()
         alertTrack.pause()
         isPlaying = false
+        notifications.rollbackOngoing()
     }
 
     fun toggle() {
@@ -130,6 +135,7 @@ class AlertFeedback @Inject constructor(
         Log.i(TAG, "Shutdown")
         stopTracks()
         scope.cancel()
+        notifications.cancelAlerts()
     }
 
     /**

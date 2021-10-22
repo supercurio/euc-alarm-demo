@@ -13,6 +13,7 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.getSystemService
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
 import supercurio.eucalarm.oems.GotwayWheel
@@ -22,15 +23,21 @@ import supercurio.eucalarm.utils.TimeUtils
 import supercurio.eucalarm.utils.toHexString
 import supercurio.wheeldata.recording.BleAdvertisement
 import supercurio.wheeldata.recording.RecordingMessageType
+import java.io.InputStream
 import java.util.*
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class WheelBleSimulator(context: Context, private val powerManagement: PowerManagement) {
+@Singleton
+class WheelBleSimulator @Inject constructor(
+    @ApplicationContext context: Context, private val powerManagement: PowerManagement
+) {
 
     private val simulatorScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
     private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
-    private lateinit var server: SuspendingGattServer
-    private lateinit var input: RecordingProvider
+    private var server: SuspendingGattServer? = null
+    private var input: RecordingProvider? = null
 
     private var characteristicsKeys: CharacteristicsKeys? = null
     private var advertiser: BluetoothLeAdvertiser? = null
@@ -61,7 +68,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         characteristicsKeys = CharacteristicsKeys()
 
         server = SuspendingGattServer(context, gattServerCallback)
-        readDeviceInfo().let { deviceInfo ->
+        readDeviceInfo(recordingProvider.inputStream).let { deviceInfo ->
             characteristicsKeys?.fromDeviceInfo(deviceInfo)
 
             Log.i(TAG, "Device Info: $deviceInfo")
@@ -95,7 +102,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
                     srv.addCharacteristic(char)
                 }
 
-                simulatorScope.launch { server.addService(srv) }
+                simulatorScope.launch { server?.addService(srv) }
             }
 
             advertisement = deviceInfo.advertisement
@@ -105,24 +112,30 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
 
     fun stop() {
         stopReplay()
-        input.close()
+        input?.close()
+        input = null
         stopAdvertising()
-        connectedDevice?.let { server.cancelConnection(it) }
-        server.clearServices()
-        server.close()
+        connectedDevice?.let { server?.cancelConnection(it) }
+        connectedDevice = null
+        server?.clearServices()
+        server?.close()
+        server = null
         characteristicsKeys = null
         powerManagement.removeLock(TAG)
     }
 
     fun shutdown() {
+        stop()
         Log.i(TAG, "Shutdown")
+        characteristicsKeys = null
+        advertiser = null
         simulatorScope.cancel()
-        instance = null
     }
 
-    private fun readDeviceInfo() = RecordingMessageType
-        .parseDelimitedFrom(input.inputStream)
-        .bleDeviceInfo
+    private fun readDeviceInfo(inputStream: InputStream) =
+        RecordingMessageType
+            .parseDelimitedFrom(inputStream)
+            .bleDeviceInfo
 
     private fun startAdvertising() {
         Log.i(TAG, "Start advertising")
@@ -163,6 +176,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
     }
 
     private suspend fun mockReplay(device: BluetoothDevice) {
+        val server = server ?: return
         var value = 1.toByte()
 
         val characteristic = server.services.mapNotNull { service ->
@@ -181,6 +195,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
 
     private suspend fun replay(device: BluetoothDevice) {
         val characteristicsKeys = characteristicsKeys ?: return
+        val input = input ?: return
         Log.i(TAG, "Replay")
         input.reset()
         doReplay = true
@@ -191,6 +206,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
 
             when {
                 message.hasGattNotification() -> {
+                    val server = server ?: return
                     val notification = message.gattNotification
                     val characteristic = characteristicsKeys.getCharacteristic(
                         server.services,
@@ -237,7 +253,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             value: ByteArray?
         ) {
             Log.i(TAG, "onCharacteristicWriteRequest")
-            server.sendSuccess(device, requestId)
+            server?.sendSuccess(device, requestId)
         }
 
         override fun onCharacteristicReadRequest(
@@ -247,7 +263,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             characteristic: BluetoothGattCharacteristic?
         ) {
             Log.i(TAG, "onCharacteristicReadRequest")
-            server.sendSuccess(device, requestId)
+            server?.sendSuccess(device, requestId)
         }
 
         override fun onDescriptorReadRequest(
@@ -256,7 +272,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
             offset: Int,
             descriptor: BluetoothGattDescriptor?
         ) {
-            server.sendSuccess(device, requestId)
+            server?.sendSuccess(device, requestId)
         }
 
         override fun onDescriptorWriteRequest(
@@ -278,7 +294,7 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
                     t.printStackTrace()
                 }
             }
-            server.sendSuccess(device, requestId)
+            server?.sendSuccess(device, requestId)
         }
     }
 
@@ -293,9 +309,5 @@ class WheelBleSimulator(context: Context, private val powerManagement: PowerMana
         )
 
         private const val ADVERTISE_SERVICE_DATA = false
-
-        private var instance: WheelBleSimulator? = null
-        fun getInstance(context: Context, powerManagement: PowerManagement) =
-            WheelBleSimulator(context, powerManagement).also { instance = it }
     }
 }
