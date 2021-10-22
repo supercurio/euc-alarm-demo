@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.Notifications
@@ -22,9 +23,7 @@ import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.di.CoroutineScopeProvider
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.atan
-import kotlin.math.roundToInt
-import kotlin.math.sin
+import kotlin.system.measureTimeMillis
 
 @Singleton
 class AlertFeedback @Inject constructor(
@@ -44,17 +43,10 @@ class AlertFeedback @Inject constructor(
     private var vibrator: Vibrator? = null
     private var alertTrack: AudioTrack? = null
     private var keepAliveTrack: AudioTrack? = null
+    private var connectionLostTrack: AudioTrack? = null
 
     private var tracksRunning = false
     private var isPlaying = false
-
-    private val audioFocusRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-        AudioFocusRequest
-            .Builder(FOCUS_GAIN)
-            .setWillPauseWhenDucked(false)
-            .build()
-    else
-        null
 
     private var currentVibrationPattern: LongArray? = null
 
@@ -110,37 +102,7 @@ class AlertFeedback @Inject constructor(
         logAudioInfo()
     }
 
-    fun playAlert() {
-        if (!tracksRunning) return
-        isPlaying = true
-
-        requestAudioFocus()
-
-        if (VIBRATE) vibratePattern(alertVibrationPattern)
-
-        alertTrack?.setVolume(0f)
-        alertTrack?.stop()
-        alertTrack?.setLoopPoints(0, BUFFER_FRAMES, -1)
-        alertTrack?.setVolume(1f)
-        alertTrack?.play()
-        notifications.updateOngoing("Alert!")
-        notifications.notifyAlert()
-    }
-
-    fun stopAlert() {
-        if (!tracksRunning) return
-        releaseAudioFocus()
-
-        if (VIBRATE) stopVibration()
-        alertTrack?.setVolume(0f)
-        alertTrack?.pause()
-        isPlaying = false
-        notifications.rollbackOngoing()
-    }
-
-    fun toggle() {
-        if (!isPlaying) playAlert() else stopAlert()
-    }
+    fun toggle() = if (!isPlaying) playAlert() else stopAlert()
 
     fun shutdown() {
         Log.i(TAG, "Shutdown")
@@ -150,17 +112,46 @@ class AlertFeedback @Inject constructor(
         notifications.cancelAlerts()
     }
 
-    /**
-     * private methods
-     */
+    private fun playAlert() {
+        if (!tracksRunning) return
+        isPlaying = true
+
+        requestAudioFocus(FOCUS_GAIN_ALERT)
+
+        if (VIBRATE) vibratePattern(ALERT_VIBRATION_PATTERN)
+
+        alertTrack?.apply {
+            setVolume(0f)
+            stop()
+            setLoopPoints(0, AudioHelper.ALERT_TRACK_FRAMES, -1)
+            setVolume(1f)
+            play()
+        }
+
+        notifications.updateOngoing("Alert!")
+        notifications.notifyAlert()
+    }
+
+    private fun stopAlert() {
+        if (!tracksRunning) return
+        releaseAudioFocus(FOCUS_GAIN_ALERT)
+
+        if (VIBRATE) stopVibration()
+        alertTrack?.apply {
+            setVolume(0f)
+            pause()
+        }
+        isPlaying = false
+        notifications.rollbackOngoing()
+    }
 
     private fun runTracks() {
         Log.i(TAG, "Run tracks")
         if (tracksRunning) return
         tracksRunning = true
 
-        keepAliveTrack = setupKeepAliveTrack()
-        alertTrack = setupAlertTrack()
+        keepAliveTrack = AudioHelper.setupKeepAliveTrack()
+        alertTrack = AudioHelper.setupAlertTrack()
     }
 
     private fun stopTracks() {
@@ -170,37 +161,39 @@ class AlertFeedback @Inject constructor(
 
         stopAlert()
 
-        alertTrack?.pause()
-        keepAliveTrack?.pause()
+        alertTrack?.apply {
+            pause()
+            flush()
+            stop()
+            release()
+            alertTrack = null
+        }
 
-        alertTrack?.flush()
-        keepAliveTrack?.flush()
-
-        alertTrack?.stop()
-        keepAliveTrack?.stop()
-
-        alertTrack?.release()
-        alertTrack = null
-        keepAliveTrack?.release()
-        keepAliveTrack = null
+        keepAliveTrack?.apply {
+            pause()
+            flush()
+            stop()
+            release()
+            keepAliveTrack = null
+        }
     }
 
-    private fun requestAudioFocus() {
+    private fun requestAudioFocus(focusGain: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (audioFocusRequest == null) return
+            val audioFocusRequest = audioFocusRequest(focusGain) ?: return
             audioManager?.requestAudioFocus(audioFocusRequest)
         } else {
             audioManager?.requestAudioFocus(
                 afChangeListener,
                 AudioManager.STREAM_MUSIC,
-                FOCUS_GAIN
+                focusGain
             )
         }
     }
 
-    private fun releaseAudioFocus() {
+    private fun releaseAudioFocus(focusGain: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (audioFocusRequest == null) return
+            val audioFocusRequest = audioFocusRequest(focusGain) ?: return
             audioManager?.abandonAudioFocusRequest(audioFocusRequest)
         } else
             audioManager?.abandonAudioFocus(afChangeListener)
@@ -210,67 +203,6 @@ class AlertFeedback @Inject constructor(
         Log.i(TAG, "Reconfigure audio tracks for new audio output")
         stopTracks()
         runTracks()
-    }
-
-    private fun setupAlertTrack(): AudioTrack {
-        val audioAttributes = AudioAttributes.Builder()
-            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-            .build()
-
-        val audioFormat = AudioFormat.Builder()
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .build()
-
-        val track = AudioTrack.Builder()
-            .setAudioFormat(audioFormat)
-            .setAudioAttributes(audioAttributes)
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .setBufferSizeInBytes(BUFFER_FRAMES * Short.SIZE_BYTES)
-            .apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                    setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
-            }
-            .build()
-
-        Log.i(TAG, "Got Track samplerate: ${track.sampleRate}")
-        val bufferSizeInFrames = track.bufferSizeInFrames
-
-        Log.i(TAG, "buffer size in frames: $bufferSizeInFrames")
-
-        val buf1 = getAudioBuffer(FREQUENCY1, 0.8, bufferSizeInFrames, track.sampleRate)
-        val buf2 = getAudioBuffer(FREQUENCY2, 0.2, bufferSizeInFrames, track.sampleRate)
-        val buf = mix(buf1, buf2)
-        track.write(buf, 0, buf.size)
-
-        return track
-    }
-
-    private fun setupKeepAliveTrack(): AudioTrack {
-        val frames = 1024
-
-        val audioAttributes = AudioAttributes.Builder()
-            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-            .build()
-
-        val audioFormat = AudioFormat.Builder()
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .build()
-
-        val track = AudioTrack.Builder()
-            .setAudioFormat(audioFormat)
-            .setAudioAttributes(audioAttributes)
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .setBufferSizeInBytes(frames * Short.SIZE_BYTES)
-            .build()
-
-        track.write(ShortArray(frames), 0, frames)
-        track.setLoopPoints(0, frames - 1, -1)
-
-        track.play()
-
-        return track
     }
 
     private val audioDeviceCallback = object : AudioDeviceCallback() {
@@ -294,10 +226,38 @@ class AlertFeedback @Inject constructor(
 
     private fun onConnectionLoss(status: Boolean) {
         Log.i(TAG, "onConnectionLoss: $status")
-        if (status)
-            vibratePattern(connectionLossPattern)
-        else
+
+        if (status) {
+            requestAudioFocus(FOCUS_GAIN_CONNECTION_LOSS)
+            vibratePattern(CONNECTION_LOSS_PATTERN)
+            connectionLostTrack = AudioHelper.setupConnectionLossTrack()
+
+            scope.launch {
+                var measuredTimeMs: Long
+                while (connectionLostTrack != null) {
+                    Log.i(TAG, "Play connection loss track ${System.currentTimeMillis()}")
+                    measuredTimeMs = measureTimeMillis {
+                        connectionLostTrack?.apply {
+                            pause()
+                            flush()
+                            stop()
+                            play()
+                        }
+                    }
+                    delay(CONNECTION_LOSS_DELAY - measuredTimeMs)
+                }
+            }
+        } else {
+            releaseAudioFocus(FOCUS_GAIN_CONNECTION_LOSS)
             stopVibration()
+            connectionLostTrack?.apply {
+                connectionLostTrack = null
+                setVolume(0f)
+                stop()
+                flush()
+                release()
+            }
+        }
     }
 
     private fun vibratePattern(pattern: LongArray) {
@@ -311,7 +271,6 @@ class AlertFeedback @Inject constructor(
         else
             vibrator?.vibrate(pattern, 0)
     }
-
 
     private fun stopVibration() {
         if (currentVibrationPattern != null) {
@@ -337,59 +296,22 @@ class AlertFeedback @Inject constructor(
         Log.i(TAG, "lowLatency: $lowLatency, audioPro: $audioPro")
     }
 
-    private fun getAudioBuffer(
-        frequency: Double,
-        multiplier: Double,
-        len: Int,
-        fs: Int
-    ): FloatArray {
-        val buf = FloatArray(len)
-        val twoPi = 8.0 * atan(1.0)
-        var phase = 0.0
-
-        for (i in 0 until len) {
-            val last = (len - 1).toDouble()
-            val amplitude = when {
-                // i < (len / 10) -> i / len.toDouble() * 10.0 // fade in
-                // i > (len / 2) -> i / 2 // fade out and blank
-
-                i < (last * 0.01) -> transition(0.0, last * 0.01, i.toDouble() - 1) // fade in
-                i > (last * 0.5) -> (1 - transition(last * 0.5, last * 0.53, i.toDouble()))
-                    .coerceAtLeast(0.0) // fade out
-
-                else -> 1.0
-            }
-
-            buf[i] = (sin(phase) * amplitude * multiplier).toFloat()
-            phase += twoPi * frequency / fs
-
-            if (phase > twoPi) {
-                phase -= twoPi
-            }
-        }
-
-        return buf
-    }
-
-    fun mix(vararg buffers: FloatArray): ShortArray {
-        val out = ShortArray(BUFFER_FRAMES)
-
-        buffers.forEach { buffer ->
-            buffer.forEachIndexed { index, value ->
-                out[index] =
-                    (out[index] + (value * Short.MAX_VALUE).roundToInt()).toShort()
-            }
-        }
-
-        return out
-    }
-
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             Log.i(TAG, "Screen turned off, resume active vibration")
             vibrate()
         }
     }
+
+    private fun audioFocusRequest(focusGain: Int) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            AudioFocusRequest
+                .Builder(focusGain)
+                .setWillPauseWhenDucked(false)
+                .build()
+        else
+            null
+
 
     private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         Log.i(TAG, "Focus change: $focusChange")
@@ -426,21 +348,19 @@ class AlertFeedback @Inject constructor(
                 "sampleRates: ${info.sampleRates.asList()}, encodings: ${info.encodings.asList()}"
     }
 
-    private fun transition(a: Double, b: Double, value: Double): Double {
-        return (value - a) / (b - a)
-    }
 
     companion object {
         private const val TAG = "AlertFeedback"
 
-        private const val BUFFER_FRAMES = 1024 * 5
-        private const val FREQUENCY1 = 1046.5022612023945
-        private const val FREQUENCY2 = 523.2511306011972
         private const val VIBRATE = true
 
-        private val FOCUS_GAIN = AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+        private const val FOCUS_GAIN_ALERT =
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+        private const val FOCUS_GAIN_CONNECTION_LOSS =
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
 
-        private val alertVibrationPattern = longArrayOf(0, 55, 20)
-        private val connectionLossPattern = longArrayOf(0, 30, 2000)
+        private val ALERT_VIBRATION_PATTERN = longArrayOf(0, 55, 20)
+        private val CONNECTION_LOSS_PATTERN = longArrayOf(0, 30, 1970)
+        private const val CONNECTION_LOSS_DELAY = 4000L
     }
 }
