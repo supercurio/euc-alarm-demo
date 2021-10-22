@@ -44,7 +44,8 @@ class AppService : Service() {
     @Inject
     lateinit var wheelConnection: WheelConnection
 
-    private lateinit var alert: AlertFeedback
+    @Inject
+    lateinit var alert: AlertFeedback
     private lateinit var wheelBleRecorder: WheelBleRecorder
     private lateinit var simulator: WheelBleSimulator
 
@@ -52,8 +53,6 @@ class AppService : Service() {
         super.onCreate()
 
         Log.i(TAG, "onCreate")
-        alert = AlertFeedback.getInstance(wheelData, wheelConnection)
-        alert.setup(applicationContext, serviceScope)
 
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
@@ -99,7 +98,6 @@ class AppService : Service() {
 
         wheelBleRecorder.shutDown()
         simulator.shutdown()
-        alert.shutdown()
         serviceScope.cancel()
 
         startedBySystem = true

@@ -25,10 +25,10 @@ import javax.inject.Singleton
 
 @Singleton
 class WheelConnection @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val wheelData: WheelDataStateFlows,
     private val powerManagement: PowerManagement,
     private val appStateStore: AppStateStore,
-    @ApplicationContext private val context: Context
 ) {
     private var connectionState = BleConnectionState.UNKNOWN
         set(value) {
@@ -146,7 +146,6 @@ class WheelConnection @Inject constructor(
             BleConnectionState.UNKNOWN
     }
 
-    // FIXME: Find a way to call shutdown at the end of the lifecycle
     fun shutdown() {
         Log.i(TAG, "Shutdown")
         disconnectDevice()

@@ -71,7 +71,8 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var wheelConnection: WheelConnection
 
-    private lateinit var alert: AlertFeedback
+    @Inject
+    lateinit var alert: AlertFeedback
     private lateinit var wheelBleRecorder: WheelBleRecorder
     private lateinit var simulator: WheelBleSimulator
     private lateinit var player: WheelBlePlayer
@@ -86,7 +87,6 @@ class MainActivity : ComponentActivity() {
 
         if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
 
-        alert = AlertFeedback.getInstance(wheelData, wheelConnection)
         wheelBleRecorder = WheelBleRecorder.getInstance(wheelConnection, appStateStore)
         simulator = WheelBleSimulator.getInstance(applicationContext, powerManagement)
         player = WheelBlePlayer(wheelConnection)

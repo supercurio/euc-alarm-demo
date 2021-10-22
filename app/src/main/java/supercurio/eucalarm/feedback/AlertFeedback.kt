@@ -11,17 +11,21 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import androidx.core.content.getSystemService
-import kotlinx.coroutines.CoroutineScope
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.math.atan
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-class AlertFeedback(
+@Singleton
+class AlertFeedback @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val wheelDataStateFlows: WheelDataStateFlows,
     private val wheelConnection: WheelConnection,
 ) {
@@ -32,6 +36,8 @@ class AlertFeedback(
      *    with lowest-latency parameters
      *  - Re-generate alarm audio buffer according to the new samplerate
      */
+
+    private val scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     private lateinit var audioManager: AudioManager
     private lateinit var vibrator: Vibrator
@@ -44,7 +50,7 @@ class AlertFeedback(
 
     private var currentVibrationPattern: LongArray? = null
 
-    fun setup(context: Context, scope: CoroutineScope) {
+    fun setup() {
         Log.i(TAG, "Setup instance")
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
@@ -123,7 +129,7 @@ class AlertFeedback(
     fun shutdown() {
         Log.i(TAG, "Shutdown")
         stopTracks()
-        instance = null
+        scope.cancel()
     }
 
     /**
@@ -393,11 +399,5 @@ class AlertFeedback(
 
         private val alertVibrationPattern = longArrayOf(0, 55, 20)
         private val connectionLossPattern = longArrayOf(0, 30, 2000)
-
-        private var instance: AlertFeedback? = null
-        fun getInstance(
-            wheelDataStateFlows: WheelDataStateFlows,
-            wheelConnection: WheelConnection
-        ) = instance ?: AlertFeedback(wheelDataStateFlows, wheelConnection).also { instance = it }
     }
 }
