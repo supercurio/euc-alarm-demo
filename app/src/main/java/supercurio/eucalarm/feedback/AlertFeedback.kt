@@ -12,8 +12,9 @@ import android.os.Vibrator
 import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.*
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelConnection
@@ -46,6 +47,14 @@ class AlertFeedback @Inject constructor(
 
     private var tracksRunning = false
     private var isPlaying = false
+
+    private val audioFocusRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        AudioFocusRequest
+            .Builder(FOCUS_GAIN)
+            .setWillPauseWhenDucked(false)
+            .build()
+    else
+        null
 
     private var currentVibrationPattern: LongArray? = null
 
@@ -177,23 +186,24 @@ class AlertFeedback @Inject constructor(
     }
 
     private fun requestAudioFocus() {
-        val focusGain = AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val request = AudioFocusRequest
-                .Builder(focusGain)
-                .build()
-            audioManager?.requestAudioFocus(request)
+            if (audioFocusRequest == null) return
+            audioManager?.requestAudioFocus(audioFocusRequest)
         } else {
             audioManager?.requestAudioFocus(
                 afChangeListener,
                 AudioManager.STREAM_MUSIC,
-                focusGain
+                FOCUS_GAIN
             )
         }
     }
 
     private fun releaseAudioFocus() {
-        audioManager?.abandonAudioFocus(afChangeListener)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (audioFocusRequest == null) return
+            audioManager?.abandonAudioFocusRequest(audioFocusRequest)
+        } else
+            audioManager?.abandonAudioFocus(afChangeListener)
     }
 
     private fun reconfigureAudioTracks() {
@@ -203,8 +213,6 @@ class AlertFeedback @Inject constructor(
     }
 
     private fun setupAlertTrack(): AudioTrack {
-        Log.i(TAG, "setupAlertTrack")
-
         val audioAttributes = AudioAttributes.Builder()
             .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
@@ -239,7 +247,6 @@ class AlertFeedback @Inject constructor(
     }
 
     private fun setupKeepAliveTrack(): AudioTrack {
-        Log.i(TAG, "setupKeepAliveTrack")
         val frames = 1024
 
         val audioAttributes = AudioAttributes.Builder()
@@ -430,6 +437,8 @@ class AlertFeedback @Inject constructor(
         private const val FREQUENCY1 = 1046.5022612023945
         private const val FREQUENCY2 = 523.2511306011972
         private const val VIBRATE = true
+
+        private val FOCUS_GAIN = AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
 
         private val alertVibrationPattern = longArrayOf(0, 55, 20)
         private val connectionLossPattern = longArrayOf(0, 30, 2000)
