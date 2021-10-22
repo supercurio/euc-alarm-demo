@@ -33,7 +33,7 @@ class WheelBleSimulator @Inject constructor(
     @ApplicationContext context: Context, private val powerManagement: PowerManagement
 ) {
 
-    private val simulatorScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
+    private var simulatorScope: CoroutineScope? = null
     private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
     private var server: SuspendingGattServer? = null
@@ -50,8 +50,9 @@ class WheelBleSimulator @Inject constructor(
     }
 
     fun start(context: Context, recordingProvider: RecordingProvider) {
-
         if (!isSupported) return
+
+        simulatorScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         val receiver = object : BroadcastReceiver() {
@@ -102,7 +103,7 @@ class WheelBleSimulator @Inject constructor(
                     srv.addCharacteristic(char)
                 }
 
-                simulatorScope.launch { server?.addService(srv) }
+                simulatorScope?.launch { server?.addService(srv) }
             }
 
             advertisement = deviceInfo.advertisement
@@ -129,7 +130,7 @@ class WheelBleSimulator @Inject constructor(
         Log.i(TAG, "Shutdown")
         characteristicsKeys = null
         advertiser = null
-        simulatorScope.cancel()
+        simulatorScope?.cancel()
     }
 
     private fun readDeviceInfo(inputStream: InputStream) =
@@ -286,7 +287,7 @@ class WheelBleSimulator @Inject constructor(
         ) {
             Log.i(TAG, "onDescriptorWriteRequest value: ${value?.toHexString()}")
 
-            simulatorScope.launch {
+            simulatorScope?.launch {
                 connectedDevice = device
                 try {
                     replay(device)

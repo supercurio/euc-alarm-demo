@@ -11,10 +11,6 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.plus
 import supercurio.eucalarm.activities.MainActivity
 import supercurio.eucalarm.service.AppService
 import java.text.SimpleDateFormat
@@ -26,7 +22,6 @@ import javax.inject.Singleton
 class Notifications @Inject constructor(@ApplicationContext private val context: Context) {
 
     private val nm = context.getSystemService<NotificationManager>()!!
-    private val scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     var muted = false
 

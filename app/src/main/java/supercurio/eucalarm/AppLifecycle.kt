@@ -8,6 +8,7 @@ import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
@@ -19,6 +20,9 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
 
     @Inject
     lateinit var appStateStore: AppStateStore
+
+    @Inject
+    lateinit var scopeProvider: CoroutineScopeProvider
 
     @Inject
     lateinit var wheelData: WheelDataStateFlows
@@ -69,6 +73,7 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
         alert.shutdown()
         AppService.enable(context, false)
         appStateStore.setState(ClosedState)
+        scopeProvider.cancelAll()
     }
 
 }

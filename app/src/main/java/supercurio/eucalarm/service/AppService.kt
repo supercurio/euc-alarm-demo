@@ -10,8 +10,8 @@ import android.os.Binder
 import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import supercurio.eucalarm.AppLifecycle
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
@@ -22,13 +22,13 @@ import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class AppService : Service() {
-    private val serviceScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
     override fun onBind(intent: Intent): Binder? = null
 
@@ -55,6 +55,9 @@ class AppService : Service() {
 
     @Inject
     lateinit var notifications: Notifications
+
+    @Inject
+    lateinit var scopeProvider: CoroutineScopeProvider
 
 
     override fun onCreate() {
@@ -98,8 +101,6 @@ class AppService : Service() {
         Log.i(TAG, "onDestroy")
         unregisterReceiver(shutdownReceiver)
 
-        serviceScope.cancel()
-
         startedBySystem = true
     }
 
@@ -110,7 +111,7 @@ class AppService : Service() {
         }
     }
 
-    private fun updateNotificationBasedOnState() = serviceScope.launch {
+    private fun updateNotificationBasedOnState() = scopeProvider.appScope.launch {
         wheelConnection.connectionStateFlow.collect {
             val title = when (it) {
                 BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"

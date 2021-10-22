@@ -18,6 +18,7 @@ import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.di.CoroutineScopeProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.atan
@@ -30,6 +31,7 @@ class AlertFeedback @Inject constructor(
     private val wheelDataStateFlows: WheelDataStateFlows,
     private val wheelConnection: WheelConnection,
     private val notifications: Notifications,
+    private val scopesProvider: CoroutineScopeProvider,
 ) {
 
     /*
@@ -37,26 +39,27 @@ class AlertFeedback @Inject constructor(
      *  - Audio alert on disconnection
      */
 
-    private val scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
-
-    private lateinit var audioManager: AudioManager
-    private lateinit var vibrator: Vibrator
+    private var audioManager: AudioManager? = null
+    private var vibrator: Vibrator? = null
     private var alertTrack: AudioTrack? = null
     private var keepAliveTrack: AudioTrack? = null
 
-    private var setupComplete = false
     private var tracksRunning = false
     private var isPlaying = false
 
     private var currentVibrationPattern: LongArray? = null
 
+    private val scope get() = scopesProvider.appScope
+
     fun setup() {
+
         Log.i(TAG, "Setup instance")
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
 
-        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+        audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
 
+        Log.i(TAG, "Scope: $scope")
         scope.launch {
             wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
@@ -97,13 +100,9 @@ class AlertFeedback @Inject constructor(
         context.registerReceiver(screenOffReceiver, filter)
 
         logAudioInfo()
-
-
-        setupComplete = true
     }
 
     fun playAlert() {
-        if (!setupComplete) return
         if (!tracksRunning) return
         isPlaying = true
 
@@ -121,7 +120,6 @@ class AlertFeedback @Inject constructor(
     }
 
     fun stopAlert() {
-        if (!setupComplete) return
         if (!tracksRunning) return
         releaseAudioFocus()
 
@@ -133,14 +131,13 @@ class AlertFeedback @Inject constructor(
     }
 
     fun toggle() {
-        if (!setupComplete) return
         if (!isPlaying) playAlert() else stopAlert()
     }
 
     fun shutdown() {
         Log.i(TAG, "Shutdown")
         stopTracks()
-        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+        audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
         scope.cancel()
         notifications.cancelAlerts()
     }
@@ -186,9 +183,9 @@ class AlertFeedback @Inject constructor(
             val request = AudioFocusRequest
                 .Builder(focusGain)
                 .build()
-            audioManager.requestAudioFocus(request)
+            audioManager?.requestAudioFocus(request)
         } else {
-            audioManager.requestAudioFocus(
+            audioManager?.requestAudioFocus(
                 afChangeListener,
                 AudioManager.STREAM_MUSIC,
                 focusGain
@@ -197,7 +194,7 @@ class AlertFeedback @Inject constructor(
     }
 
     private fun releaseAudioFocus() {
-        audioManager.abandonAudioFocus(afChangeListener)
+        audioManager?.abandonAudioFocus(afChangeListener)
     }
 
     private fun reconfigureAudioTracks() {
@@ -304,16 +301,16 @@ class AlertFeedback @Inject constructor(
 
     private fun vibrate() = currentVibrationPattern?.let { pattern ->
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
         else
-            vibrator.vibrate(pattern, 0)
+            vibrator?.vibrate(pattern, 0)
     }
 
 
     private fun stopVibration() {
         if (currentVibrationPattern != null) {
             currentVibrationPattern = null
-            vibrator.cancel()
+            vibrator?.cancel()
         }
     }
 
@@ -325,23 +322,13 @@ class AlertFeedback @Inject constructor(
             .hasSystemFeature(PackageManager.FEATURE_AUDIO_PRO)
 
 
-        val outputSampleRate = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
-        val outputFramesPerBuffer =
-            audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
+        audioManager
+            ?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            ?.forEach { info ->
+                Log.i(TAG, audioDeviceInfoText(info))
+            }
 
-        val deviceInfo = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        deviceInfo.forEach { info ->
-            Log.i(TAG, audioDeviceInfoText(info))
-        }
-
-        Log.i(
-            TAG,
-            "lowLatency: $lowLatency, " +
-                    "audioPro: $audioPro, " +
-                    "outputSampleRate: $outputSampleRate, " +
-                    "outputFramesPerBuffer: $outputFramesPerBuffer"
-        )
-
+        Log.i(TAG, "lowLatency: $lowLatency, audioPro: $audioPro")
     }
 
     private fun getAudioBuffer(

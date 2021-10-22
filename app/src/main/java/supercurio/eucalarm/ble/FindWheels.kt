@@ -15,8 +15,7 @@ import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
 
 class FindWheels(private val context: Context) {
 
-    private val scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
-
+    private var scope: CoroutineScope? = null
     private var findConnectedWheels: FindConnectedWheels? = null
     val isScanning = MutableStateFlow(false)
     val foundWheels = MutableStateFlow(listOf<DeviceFound>())
@@ -32,6 +31,8 @@ class FindWheels(private val context: Context) {
     private var keepFindingConnectedWheels = true
 
     fun find() {
+        scope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
+
         keepFindingConnectedWheels = true
         startLeScan()
 
@@ -40,7 +41,7 @@ class FindWheels(private val context: Context) {
             if (isScanning.value) updateSateFlow()
         }
 
-        scope.launch {
+        scope?.launch {
             while (keepFindingConnectedWheels) {
                 findConnectedWheels?.find()
                 delay(MAX_AGE_MS)
@@ -61,6 +62,9 @@ class FindWheels(private val context: Context) {
         devicesFound.clear()
         if (isScanning.value) updateSateFlow()
         isScanning.value = false
+
+        scope?.cancel()
+        scope = null
     }
 
     private fun updateSateFlow() {
@@ -74,7 +78,7 @@ class FindWheels(private val context: Context) {
      * BLE Scanner
      */
 
-    private fun startLeScan() = scope.launch {
+    private fun startLeScan() = scope?.launch {
         Log.i(TAG, "Start scan, offloadedFilteringSupported: $offloadedFilteringSupported")
 
         val callback = getCallback().also { findLeScanCallback = it }

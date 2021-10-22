@@ -11,8 +11,8 @@ import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 
 class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
-    private val scope = CoroutineScope(Dispatchers.Main) + CoroutineName(TAG)
 
+    private var scope: CoroutineScope? = null
     private var scannerWrapper = LeScannerWrapper()
     private var isScanning = false
     private val offloadedFilteringSupported =
@@ -21,6 +21,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
     var reconnectToAddr: String? = null
 
     fun findAndReconnect(context: Context, deviceAddr: String) {
+        scope = CoroutineScope(Dispatchers.Main) + CoroutineName(TAG)
         reconnectToAddr = deviceAddr
         if (BluetoothAdapter.getDefaultAdapter().isEnabled) {
             FindConnectedWheels(context) { deviceFound ->
@@ -39,6 +40,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
         scannerWrapper.stop()
         isScanning = false
         reconnectToAddr = null
+        scope?.cancel()
     }
 
     private fun scanToReconnectTo(context: Context, deviceAddr: String) {
@@ -77,7 +79,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
             .build()
 
-        scope.launch {
+        scope?.launch {
             // try first with CALLBACK_TYPE_FIRST_MATCH
 
             isScanning = true
