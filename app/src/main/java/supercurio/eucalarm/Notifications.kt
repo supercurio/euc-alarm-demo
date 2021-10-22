@@ -40,7 +40,7 @@ class Notifications @Inject constructor(@ApplicationContext private val context:
                 NotificationChannel(
                     NOTIFICATION_CHANNEL_ALERT_ID,
                     context.getString(R.string.alert_channel_name),
-                    NotificationManager.IMPORTANCE_HIGH,
+                    NotificationManager.IMPORTANCE_DEFAULT,
                 ).apply {
                     setBypassDnd(true)
                     enableVibration(false)
@@ -96,7 +96,6 @@ class Notifications @Inject constructor(@ApplicationContext private val context:
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle("Wheel alarm")
             .setContentText("EUC Alarm (${formatter.format(Date(time))})")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
         nm.notify(ALERT_ID, notif)
