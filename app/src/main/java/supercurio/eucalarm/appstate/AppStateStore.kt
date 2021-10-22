@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
-import supercurio.eucalarm.service.AppService
+import supercurio.eucalarm.AppLifecycle
 import supercurio.eucalarm.utils.directBootContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,7 +18,6 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
 
     var appState: AppState = UndefinedState
         private set
-
 
     fun setState(value: AppState) {
         appState = value
@@ -35,14 +34,14 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
         Log.i(TAG, "State set to $value")
     }
 
-    fun restoreState() {
+    fun restoreState(appLifecycle: AppLifecycle) {
         loadState()
         Log.i(TAG, "Restore state")
 
         when (appState) {
-            is ClosedState -> AppService.enable(appContext, false)
-            is ConnectedState -> AppService.enable(appContext, true)
-            is RecordingState -> AppService.enable(appContext, true)
+            is ClosedState -> appLifecycle.off()
+            is ConnectedState -> appLifecycle.on()
+            is RecordingState -> appLifecycle.on()
             else -> Unit
         }
     }

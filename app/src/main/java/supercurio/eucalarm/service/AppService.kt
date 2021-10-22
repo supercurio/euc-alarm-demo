@@ -68,7 +68,7 @@ class AppService : Service() {
         registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
 
         // when the service is started by the system after being killed or a crash
-        if (startedBySystem) appStateStore.restoreState()
+        if (startedBySystem) appStateStore.restoreState(appLifecycle)
 
         updateNotificationBasedOnState()
     }

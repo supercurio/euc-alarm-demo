@@ -1,6 +1,7 @@
 package supercurio.eucalarm
 
 import android.content.Context
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ClosedState
@@ -51,6 +52,8 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
         if (state) return
         state = true
 
+        Log.i(TAG, "ON")
+
         wheelData.clear()
         notifications.muted = false
         alert.setup()
@@ -63,6 +66,8 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
         if (!state) return
         state = false
 
+        Log.i(TAG, "OFF")
+
         notifications.muted = true
 
         simulator.shutdown()
@@ -74,6 +79,10 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
         AppService.enable(context, false)
         appStateStore.setState(ClosedState)
         scopeProvider.cancelAll()
+    }
+
+    companion object {
+        private const val TAG = "AppLifecycle"
     }
 
 }
