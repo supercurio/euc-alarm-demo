@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.activities.MainActivity
+import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.service.AppService
 import java.text.SimpleDateFormat
 import java.util.*
@@ -19,7 +20,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class Notifications @Inject constructor(@ApplicationContext private val context: Context) {
+class Notifications @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val wheelConnection: WheelConnection
+) {
 
     private val nm = context.getSystemService<NotificationManager>()!!
 
@@ -65,11 +69,20 @@ class Notifications @Inject constructor(@ApplicationContext private val context:
             PendingIntent.FLAG_IMMUTABLE
         )
 
+        val disconnectPi = PendingIntent.getBroadcast(
+            context, 0, Intent(AppService.DISCONNECT_BROADCAST),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID)
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle(title)
             .setContentIntent(startActivityPi)
             .addAction(0, "Stop", stopServicePi)
+            .apply {
+                if (wheelConnection.connectionStateFlow.value.canDisconnect)
+                    addAction(0, "Disconnect wheel", disconnectPi)
+            }
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
     }

@@ -65,7 +65,10 @@ class AppService : Service() {
 
         Log.i(TAG, "onCreate")
 
-        registerReceiver(shutdownReceiver, IntentFilter(STOP_BROADCAST))
+        registerReceiver(broadcastReceiver, IntentFilter().apply {
+            addAction(STOP_BROADCAST)
+            addAction(DISCONNECT_BROADCAST)
+        })
 
         // when the service is started by the system after being killed or a crash
         if (startedBySystem) appStateStore.restoreState(appLifecycle)
@@ -99,15 +102,18 @@ class AppService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
-        unregisterReceiver(shutdownReceiver)
+        unregisterReceiver(broadcastReceiver)
 
         startedBySystem = true
     }
 
 
-    private val shutdownReceiver = object : BroadcastReceiver() {
+    private val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == STOP_BROADCAST) appLifecycle.off()
+            when (intent.action) {
+                STOP_BROADCAST -> appLifecycle.off()
+                DISCONNECT_BROADCAST -> wheelConnection.disconnectDevice()
+            }
         }
     }
 
@@ -130,6 +136,7 @@ class AppService : Service() {
         private const val TAG = "AppService"
 
         const val STOP_BROADCAST = "StopAndExitService"
+        const val DISCONNECT_BROADCAST = "DisconnectBluetoothDevice"
 
         private var startedBySystem = true
 
