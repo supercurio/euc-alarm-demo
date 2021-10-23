@@ -77,9 +77,9 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
                         .toHexString()
 
                 wheelData.voltage = voltage
-                wheelData.speed = speed
+                wheelData.speed = speed.negative
                 wheelData.tripDistance = distance
-                wheelData.current = current
+                wheelData.current = current.negative
                 wheelData.temperature = temperature
 
                 wheelData.gotNewData()
@@ -149,3 +149,9 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
         private const val DATA_LOGGING = false
     }
 }
+
+private val Double.negative
+    get() = when (this) {
+        0.0 -> 0.0
+        else -> -this
+    }
