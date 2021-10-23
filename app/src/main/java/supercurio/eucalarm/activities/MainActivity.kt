@@ -31,9 +31,10 @@ import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
-import supercurio.eucalarm.AppLifecycle
+import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.ble.*
+import supercurio.eucalarm.ble.find.FindWheels
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement

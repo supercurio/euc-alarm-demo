@@ -1,15 +1,15 @@
-package supercurio.eucalarm
+package supercurio.eucalarm.di
 
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.OffState
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
-import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService

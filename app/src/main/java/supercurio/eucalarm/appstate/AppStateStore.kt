@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
-import supercurio.eucalarm.AppLifecycle
+import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.utils.directBootContext
 import javax.inject.Inject
 import javax.inject.Singleton

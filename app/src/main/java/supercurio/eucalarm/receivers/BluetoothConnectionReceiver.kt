@@ -1,4 +1,4 @@
-package supercurio.eucalarm.ble
+package supercurio.eucalarm.receivers
 
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
@@ -6,8 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
-import supercurio.eucalarm.AppLifecycle
+import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.ble.DevicesNamesCache
+import supercurio.eucalarm.ble.WheelConnection
 import javax.inject.Inject
 
 @AndroidEntryPoint

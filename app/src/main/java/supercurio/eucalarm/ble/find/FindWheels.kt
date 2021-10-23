@@ -1,4 +1,4 @@
-package supercurio.eucalarm.ble
+package supercurio.eucalarm.ble.find
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanCallback
@@ -10,6 +10,8 @@ import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import supercurio.eucalarm.ble.DeviceFound
+import supercurio.eucalarm.ble.DeviceFoundFrom
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
 

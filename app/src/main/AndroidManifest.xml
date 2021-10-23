@@ -48,7 +48,7 @@
         </provider>
 
         <receiver
-            android:name=".appstate.RestoreStateReceiver"
+            android:name=".receivers.RestoreStateReceiver"
             android:directBootAware="true"
             android:exported="false"
             tools:targetApi="n">
@@ -59,7 +59,7 @@
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".ble.BluetoothConnectionReceiver">
+        <receiver android:name=".receivers.BluetoothConnectionReceiver">
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
             </intent-filter>

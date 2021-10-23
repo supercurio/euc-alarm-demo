@@ -16,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.OnStateDefault
+import supercurio.eucalarm.ble.find.FindReconnectWheel
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel

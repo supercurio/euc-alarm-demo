@@ -1,4 +1,4 @@
-package supercurio.eucalarm.ble
+package supercurio.eucalarm.ble.find
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanFilter
@@ -7,6 +7,9 @@ import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
+import supercurio.eucalarm.ble.DeviceFound
+import supercurio.eucalarm.ble.DeviceFoundFrom
+import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 
 class FindReconnectWheel(private val wheelConnection: WheelConnection) {

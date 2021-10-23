@@ -1,4 +1,4 @@
-package supercurio.eucalarm.appstate
+package supercurio.eucalarm.receivers
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -6,7 +6,8 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
-import supercurio.eucalarm.AppLifecycle
+import supercurio.eucalarm.di.AppLifecycle
+import supercurio.eucalarm.appstate.AppStateStore
 import javax.inject.Inject
 
 @AndroidEntryPoint

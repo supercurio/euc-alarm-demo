@@ -12,7 +12,7 @@ import androidx.core.content.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import supercurio.eucalarm.AppLifecycle
+import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
 import supercurio.eucalarm.appstate.AppStateStore

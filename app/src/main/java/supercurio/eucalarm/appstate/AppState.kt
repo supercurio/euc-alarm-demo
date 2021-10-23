@@ -2,7 +2,6 @@ package supercurio.eucalarm.appstate
 
 sealed class AppState(val name: String)
 
-object UndefinedState : AppState(AppStateStore.UNDEFINED_SATE)
 object OffState : AppState(AppStateStore.OFF_SATE)
 object OnStateDefault : AppState(AppStateStore.ON_SATE_DEFAULT)
 data class ConnectedState(val deviceAddr: String) : AppState(AppStateStore.CONNECTED_STATE)
