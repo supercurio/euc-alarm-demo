@@ -59,11 +59,6 @@ class Notifications @Inject constructor(
 
     fun foregroundServiceNotificationBuilder(title: String): Notification {
 
-        val startActivityPi = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val stopServicePi = PendingIntent.getBroadcast(
             context, 0, Intent(AppService.STOP_BROADCAST),
             PendingIntent.FLAG_IMMUTABLE
@@ -109,6 +104,8 @@ class Notifications @Inject constructor(
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle("Wheel alarm")
             .setContentText("EUC Alarm (${formatter.format(Date(time))})")
+            .setContentIntent(startActivityPi)
+            .setTimeoutAfter(ALERT_TIMEOUT)
             .build()
 
         nm.notify(ALERT_ID, notif)
@@ -118,6 +115,12 @@ class Notifications @Inject constructor(
         nm.cancel(ALERT_ID)
     }
 
+    private val startActivityPi
+        get() = PendingIntent.getActivity(
+            context, 0, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
 
     companion object {
         private const val TAG = "Notifications"
@@ -126,5 +129,6 @@ class Notifications @Inject constructor(
 
         const val SERVICE_ID = 1
         const val ALERT_ID = 2
+        const val ALERT_TIMEOUT = 5000L
     }
 }
