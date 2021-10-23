@@ -48,7 +48,6 @@ class DevicesNamesCache @Inject constructor(@ApplicationContext context: Context
     }
 
     companion object {
-        private const val TAG = "DeviceNamesCache"
         private const val NO_ADDRESS = "no-address"
     }
 }

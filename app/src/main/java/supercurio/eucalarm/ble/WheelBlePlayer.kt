@@ -57,8 +57,4 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
         playingState.value = false
         input?.close()
     }
-
-    companion object {
-        private const val TAG = "WheelBlePlayer"
-    }
 }

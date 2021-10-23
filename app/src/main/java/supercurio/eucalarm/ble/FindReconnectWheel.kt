@@ -31,7 +31,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
                 }
             }.find()
 
-            scanToReconnectTo(context, deviceAddr)
+            scanToReconnectTo(deviceAddr)
         }
     }
 
@@ -42,7 +42,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
         scope?.cancel()
     }
 
-    private fun scanToReconnectTo(context: Context, deviceAddr: String) {
+    private fun scanToReconnectTo(deviceAddr: String) {
         if (isScanning) return
 
         Log.i(TAG, "Start scan for $deviceAddr")

@@ -12,7 +12,7 @@ data class DeviceFound(
     val rssi: Int? = null,
     val timeStamp: Long = SystemClock.elapsedRealtime()
 ) {
-    val ageMs get() = SystemClock.elapsedRealtime() - timeStamp
+    private val ageMs get() = SystemClock.elapsedRealtime() - timeStamp
     fun expired(maxAgeMs: Long) = when (from) {
         DeviceFoundFrom.SCAN, DeviceFoundFrom.ALREADY_CONNECTED -> ageMs > maxAgeMs
         else -> false

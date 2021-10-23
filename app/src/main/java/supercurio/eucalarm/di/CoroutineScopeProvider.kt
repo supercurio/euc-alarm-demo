@@ -18,7 +18,4 @@ class CoroutineScopeProvider @Inject constructor() {
         _appScope = null
     }
 
-    companion object {
-        private const val TAG = "CoroutineScopeProvider"
-    }
 }

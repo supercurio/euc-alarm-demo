@@ -82,8 +82,6 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
     }
 
     companion object {
-        private const val TAG = "VeteranWheel"
-
         private const val FRAME_SIZE = 36
 
         private val FRAME_HEADER = declareByteArray(0xdc, 0x5a, 0x5c, 0x20)

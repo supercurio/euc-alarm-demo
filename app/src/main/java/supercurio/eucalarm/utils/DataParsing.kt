@@ -14,7 +14,7 @@ object DataParsing {
         if (toRemove > 0) (0 until toRemove).forEach { _ -> remove() }
     }
 
-    // test if a ByteArrat starts of ends with the content of another ByteArrat
+    // test if a ByteArray starts of ends with the content of another ByteArray
     fun ByteArray.startsWith(bytes: ByteArray): Boolean {
         bytes.indices.forEach { i -> if (this[i] != bytes[i]) return false }
         return true
