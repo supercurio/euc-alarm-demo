@@ -146,18 +146,18 @@ class AlertFeedback @Inject constructor(
     }
 
     private fun runTracks() {
-        Log.i(TAG, "Run tracks")
         if (tracksRunning) return
         tracksRunning = true
+        Log.i(TAG, "Run tracks")
 
         keepAliveTrack = AudioHelper.setupKeepAliveTrack()
         alertTrack = AudioHelper.setupAlertTrack()
     }
 
     private fun stopTracks() {
-        Log.i(TAG, "Stop Tracks")
         if (!tracksRunning) return
         tracksRunning = false
+        Log.i(TAG, "Stop Tracks")
 
         stopAlert()
 
@@ -298,8 +298,10 @@ class AlertFeedback @Inject constructor(
 
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            Log.i(TAG, "Screen turned off, resume active vibration")
-            vibrate()
+            if (currentVibrationPattern != null) {
+                Log.i(TAG, "Screen turned off, resume active vibration")
+                vibrate()
+            }
         }
     }
 

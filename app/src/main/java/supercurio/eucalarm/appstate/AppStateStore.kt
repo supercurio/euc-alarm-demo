@@ -16,7 +16,7 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
         .directBootContext
         .getSharedPreferences("app_state", Context.MODE_PRIVATE)
 
-    var appState: AppState = UndefinedState
+    var appState: AppState = OnStateDefault
         private set
 
     fun setState(value: AppState) {
@@ -25,10 +25,11 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
         prefs.edit(commit = true) {
             clear()
             when (value) {
-                is ClosedState -> putString(CLOSED_SATE, "")
+                is OffState -> putString(OFF_SATE, "")
+                is OnStateDefault -> putString(ON_SATE_DEFAULT, "")
                 is ConnectedState -> putString(CONNECTED_STATE, value.deviceAddr)
                 is RecordingState -> putString(RECORDING_STATE, value.deviceAddr)
-                else -> putString(UNDEFINED_SATE, "")
+                else -> error("Invalid state")
             }
         }
         Log.i(TAG, "State set to $value")
@@ -39,9 +40,8 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
         Log.i(TAG, "Restore state")
 
         when (appState) {
-            is ClosedState -> appLifecycle.off()
-            is ConnectedState -> appLifecycle.on()
-            is RecordingState -> appLifecycle.on()
+            is OffState -> appLifecycle.off()
+            is OnStateDefault, is ConnectedState, is RecordingState -> appLifecycle.on()
             else -> Unit
         }
     }
@@ -49,10 +49,11 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
     fun loadState(): AppState {
         prefs.all.forEach { (key, value) ->
             appState = when (key) {
-                CLOSED_SATE -> ClosedState
+                OFF_SATE -> OffState
+                ON_SATE_DEFAULT -> OnStateDefault
                 CONNECTED_STATE -> ConnectedState(value.toString())
                 RECORDING_STATE -> RecordingState(value.toString())
-                else -> UndefinedState
+                else -> OnStateDefault
             }
         }
         Log.i(TAG, "Loaded state: $appState")
@@ -63,7 +64,8 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
         private const val TAG = "AppStateStore"
 
         const val UNDEFINED_SATE = "undefined"
-        const val CLOSED_SATE = "closed"
+        const val OFF_SATE = "off"
+        const val ON_SATE_DEFAULT = "on"
         const val CONNECTED_STATE = "connected"
         const val RECORDING_STATE = "recording"
     }

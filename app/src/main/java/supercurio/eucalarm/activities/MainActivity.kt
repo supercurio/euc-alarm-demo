@@ -33,7 +33,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import supercurio.eucalarm.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
-import supercurio.eucalarm.appstate.ClosedState
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
@@ -241,16 +240,15 @@ class MainActivity : ComponentActivity() {
                     else -> ""
                 }
 
-                Button(onClick = {
-                    wheelConnection.disconnectDevice()
-                    appStateStore.setState(ClosedState)
-                }) { Text("Disconnect ${wheelConnection.deviceName} ($stateText)") }
+                Button(onClick = { wheelConnection.disconnectDevice() }) {
+                    Text("Disconnect ${wheelConnection.deviceName} ($stateText)")
+                }
             }
 
             Button(onClick = { manualStop() }) { Text("Stop and exit app") }
 
             if (bleConnectionState.canDisconnect)
-                Button(onClick = { alert.toggle() }) { Text(text = "AlertFeedback Test") }
+                Button(onClick = { alert.toggle() }) { Text(text = "Toggle Alert") }
 
             if (!bleConnectionState.canDisconnect) {
                 val playingState by player.playingState.collectAsState()

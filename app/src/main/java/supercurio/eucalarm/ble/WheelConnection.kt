@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
+import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
@@ -119,6 +120,8 @@ class WheelConnection @Inject constructor(
     }
 
     fun disconnectDevice() {
+        appStateStore.setState(OnStateDefault)
+
         if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
             connectionState = BleConnectionState.DISCONNECTED
 

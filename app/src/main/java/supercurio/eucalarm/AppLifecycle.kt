@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.appstate.AppStateStore
-import supercurio.eucalarm.appstate.ClosedState
+import supercurio.eucalarm.appstate.OffState
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
@@ -77,7 +77,7 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
         wheelBleRecorder.shutDown()
         alert.shutdown()
         AppService.enable(context, false)
-        appStateStore.setState(ClosedState)
+        appStateStore.setState(OffState)
         scopeProvider.cancelAll()
     }
 

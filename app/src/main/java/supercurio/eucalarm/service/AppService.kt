@@ -125,7 +125,9 @@ class AppService : Service() {
                 BleConnectionState.RECEIVING_DATA -> "Receiving data from ${wheelConnection.deviceName}"
                 BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
                 BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
-                else -> "Not connected"
+                BleConnectionState.BLUETOOTH_OFF -> "Bluetooth is off"
+                BleConnectionState.DISCONNECTED -> "Waiting for connection"
+                else -> "Standby"
             }
 
             notifications.updateOngoing(title)
