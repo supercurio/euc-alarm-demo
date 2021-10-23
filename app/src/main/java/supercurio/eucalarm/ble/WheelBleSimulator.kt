@@ -12,8 +12,6 @@ import android.content.IntentFilter
 import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
-import androidx.core.content.getSystemService
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
 import supercurio.eucalarm.oems.GotwayWheel
@@ -29,12 +27,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class WheelBleSimulator @Inject constructor(
-    @ApplicationContext context: Context, private val powerManagement: PowerManagement
-) {
+class WheelBleSimulator @Inject constructor(private val powerManagement: PowerManagement) {
 
     private var simulatorScope: CoroutineScope? = null
-    private val btManager by lazy { context.getSystemService<BluetoothManager>()!! }
 
     private var server: SuspendingGattServer? = null
     private var input: RecordingProvider? = null
@@ -45,9 +40,7 @@ class WheelBleSimulator @Inject constructor(
     private var advertisement: BleAdvertisement? = null
     private var doReplay = false
 
-    val isSupported by lazy {
-        BluetoothAdapter.getDefaultAdapter().bluetoothLeAdvertiser != null
-    }
+    var isSupported = detectSupport()
 
     fun start(context: Context, recordingProvider: RecordingProvider) {
         if (!isSupported) return
@@ -125,6 +118,11 @@ class WheelBleSimulator @Inject constructor(
         powerManagement.removeLock(TAG)
     }
 
+    fun detectSupport(): Boolean {
+        isSupported = (BluetoothAdapter.getDefaultAdapter().bluetoothLeAdvertiser != null)
+        return isSupported
+    }
+
     fun shutdown() {
         stop()
         Log.i(TAG, "Shutdown")
@@ -160,7 +158,7 @@ class WheelBleSimulator @Inject constructor(
                 }
             }.build()
 
-        val adapter = btManager.adapter
+        val adapter = BluetoothAdapter.getDefaultAdapter()
         advertiser = adapter.bluetoothLeAdvertiser?.apply {
             Log.i(
                 TAG, "Adapter isMultipleAdvertisementSupported: " +

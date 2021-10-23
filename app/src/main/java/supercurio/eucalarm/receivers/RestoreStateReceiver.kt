@@ -6,8 +6,8 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
-import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.di.AppLifecycle
 import javax.inject.Inject
 
 @AndroidEntryPoint

@@ -6,10 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
-import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.ble.DevicesNamesCache
 import supercurio.eucalarm.ble.WheelConnection
+import supercurio.eucalarm.di.AppLifecycle
 import javax.inject.Inject
 
 @AndroidEntryPoint

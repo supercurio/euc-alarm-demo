@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,28 +32,24 @@ import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
-import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.ble.find.FindWheels
 import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.directBootContext
+import supercurio.eucalarm.utils.locationEnabled
 import java.text.DecimalFormat
 import javax.inject.Inject
 
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    /**
-     * TODO:
-     *  * Check if Location is enabled
-     */
 
     private val activityScope = MainScope() + CoroutineName(TAG)
 
@@ -105,6 +102,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         if (intent.action == Intent.ACTION_VIEW) getSharedRecordingFile(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        simulator.detectSupport()
     }
 
     override fun onDestroy() {
@@ -224,11 +226,18 @@ class MainActivity : ComponentActivity() {
             if (!bleConnectionState.canDisconnect) {
                 Button(
                     onClick = {
-                        if (BluetoothAdapter.getDefaultAdapter().isEnabled) {
-                            openDialog.value = true
-                            findWheels.find()
-                        } else startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                        when {
+                            !locationEnabled ->
+                                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
 
+                            !BluetoothAdapter.getDefaultAdapter().isEnabled ->
+                                startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+
+                            else -> {
+                                openDialog.value = true
+                                findWheels.find()
+                            }
+                        }
                     }, enabled = !scanningState
                 ) { Text("Find Wheel") }
             } else {

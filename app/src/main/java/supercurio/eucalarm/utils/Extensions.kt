@@ -2,7 +2,9 @@ package supercurio.eucalarm.utils
 
 import android.bluetooth.BluetoothGattCharacteristic
 import android.content.Context
+import android.location.LocationManager
 import android.os.Build
+import androidx.core.content.getSystemService
 
 fun BluetoothGattCharacteristic.hasNotify() =
     properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
@@ -26,3 +28,14 @@ val Context.directBootContext: Context
     get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         createDeviceProtectedStorageContext()
     } else this
+
+val Context.locationEnabled: Boolean
+    get() = getSystemService<LocationManager>()!!.let {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            it.isLocationEnabled
+        } else {
+            it.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    it.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ||
+                    it.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)
+        }
+    }

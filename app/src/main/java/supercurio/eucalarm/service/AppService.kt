@@ -12,7 +12,6 @@ import androidx.core.content.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.R
 import supercurio.eucalarm.appstate.AppStateStore
@@ -22,6 +21,7 @@ import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.power.PowerManagement
