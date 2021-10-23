@@ -4,9 +4,13 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanRecord
 import android.content.Context
 import androidx.core.content.edit
+import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.utils.directBootContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class DevicesNamesCache(context: Context) {
+@Singleton
+class DevicesNamesCache @Inject constructor(@ApplicationContext context: Context) {
 
     private val map = mutableMapOf<String, String>()
 
@@ -34,6 +38,14 @@ class DevicesNamesCache(context: Context) {
         return name ?: address
     }
 
+    fun isKnown(device: BluetoothDevice): Boolean {
+        val map = prefs.all
+        return when {
+            map.containsKey(device.address) -> true
+            map.containsValue(device.name) -> true
+            else -> false
+        }
+    }
 
     companion object {
         private const val TAG = "DeviceNamesCache"

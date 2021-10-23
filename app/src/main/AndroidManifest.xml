@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="supercurio.eucalarm">
 
     <application
         android:name=".App"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -49,7 +50,8 @@
         <receiver
             android:name=".appstate.RestoreStateReceiver"
             android:directBootAware="true"
-            android:exported="false">
+            android:exported="false"
+            tools:targetApi="n">
             <intent-filter>
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -57,9 +59,16 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".ble.BluetoothConnectionReceiver">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".service.AppService"
-            android:directBootAware="true" />
+            android:directBootAware="true"
+            tools:targetApi="n" />
 
     </application>
 

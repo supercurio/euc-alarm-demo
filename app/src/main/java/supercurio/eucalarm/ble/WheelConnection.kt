@@ -29,6 +29,7 @@ class WheelConnection @Inject constructor(
     private val wheelData: WheelDataStateFlows,
     private val powerManagement: PowerManagement,
     private val appStateStore: AppStateStore,
+    private val devicesNamesCache: DevicesNamesCache,
 ) {
     private var connectionState = BleConnectionState.UNKNOWN
         set(value) {
@@ -38,7 +39,6 @@ class WheelConnection @Inject constructor(
         }
 
     private val findReconnectWheel = FindReconnectWheel(this)
-    private var devicesNamesCache: DevicesNamesCache? = null
 
     private var shouldStayConnected = false
 
@@ -52,9 +52,10 @@ class WheelConnection @Inject constructor(
     val device get() = _gatt?.device
     val advertisement get() = deviceFound?.scanRecord
     val deviceName
-        get() = device?.name ?: devicesNamesCache?.get(
-            device?.address ?: deviceFound?.device?.address ?: findReconnectWheel.reconnectToAddr
-        )
+        get() = device?.name ?: devicesNamesCache[device?.address
+            ?: deviceFound?.device?.address
+            ?: findReconnectWheel.reconnectToAddr
+        ]
 
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
@@ -63,7 +64,6 @@ class WheelConnection @Inject constructor(
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
     fun reconnectDevice(deviceAddr: String) {
-        setDevicesNamesCache()
         registerBtStateChangeReceiver()
         findReconnectWheel.reconnectToAddr = deviceAddr // to help deviceName resolve
         connectionState = BleConnectionState.SCANNING
@@ -74,16 +74,11 @@ class WheelConnection @Inject constructor(
         Log.i(TAG, "connectDevice($inputDeviceToConnect)")
         findReconnectWheel.stopLeScan()
 
-        setDevicesNamesCache()
-
         // set app state
         appStateStore.setState(ConnectedState(inputDeviceToConnect.device.address))
 
         inputDeviceToConnect.scanRecord?.let {
-            devicesNamesCache?.remember(
-                inputDeviceToConnect.device.address,
-                it
-            )
+            devicesNamesCache.remember(inputDeviceToConnect.device.address, it)
         }
 
         // TODO: check if really necessary
@@ -167,7 +162,7 @@ class WheelConnection @Inject constructor(
 
     private fun doConnect(device: BluetoothDevice) {
         _gatt = device.connectGatt(context, false, gattCallback)
-        devicesNamesCache?.remember(device)
+        devicesNamesCache.remember(device)
     }
 
     private fun registerBtStateChangeReceiver() {
@@ -292,9 +287,6 @@ class WheelConnection @Inject constructor(
             BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
         gatt.writeDescriptor(desc)
     }
-
-    private fun setDevicesNamesCache() =
-        devicesNamesCache ?: DevicesNamesCache(context).also { devicesNamesCache = it }
 
     companion object {
         private const val TAG = "WheelConnection"
