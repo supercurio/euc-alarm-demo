@@ -82,10 +82,10 @@ class Notifications @Inject constructor(
             .build()
     }
 
-    fun updateOngoing(title: String) {
+    fun updateOngoing(title: String, storeCurrent: Boolean = true) {
         if (muted) return
 
-        prevMessage = currentMessage
+        if (storeCurrent) prevMessage = currentMessage
 
         Log.i(TAG, "Update notification with title: $title")
         nm.notify(SERVICE_ID, foregroundServiceNotificationBuilder(title))
@@ -93,10 +93,13 @@ class Notifications @Inject constructor(
     }
 
     fun rollbackOngoing() {
-        updateOngoing(prevMessage)
+        updateOngoing(prevMessage, false)
     }
 
     fun notifyAlert() {
+        if (muted) return
+        updateOngoing("Wheel alarm !")
+
         val time = System.currentTimeMillis()
         val formatter = SimpleDateFormat("HH:mm:ss")
 
@@ -112,6 +115,7 @@ class Notifications @Inject constructor(
     }
 
     fun cancelAlerts() {
+        rollbackOngoing()
         nm.cancel(ALERT_ID)
     }
 

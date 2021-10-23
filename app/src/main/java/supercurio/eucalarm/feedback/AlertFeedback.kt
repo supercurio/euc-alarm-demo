@@ -128,7 +128,6 @@ class AlertFeedback @Inject constructor(
             play()
         }
 
-        notifications.updateOngoing("Alert!")
         notifications.notifyAlert()
     }
 
@@ -235,7 +234,6 @@ class AlertFeedback @Inject constructor(
             scope.launch {
                 var measuredTimeMs: Long
                 while (connectionLostTrack != null) {
-                    Log.i(TAG, "Play connection loss track ${System.currentTimeMillis()}")
                     measuredTimeMs = measureTimeMillis {
                         connectionLostTrack?.apply {
                             pause()

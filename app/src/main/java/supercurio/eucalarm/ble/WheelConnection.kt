@@ -185,22 +185,23 @@ class WheelConnection @Inject constructor(
             when (newState) {
                 BluetoothGatt.STATE_CONNECTING -> {
                     connectionState = BleConnectionState.CONNECTING
-                    Log.i(TAG, "onConnectionStateChange: STATE_CONNECTING")
+                    logConnectionStateChange("STATE_CONNECTING", status)
                 }
 
                 BluetoothGatt.STATE_DISCONNECTING -> {
                     connectionState = BleConnectionState.DISCONNECTING
-                    Log.i(TAG, "onConnectionStateChange: STATE_DISCONNECTING")
+                    logConnectionStateChange("STATE_DISCONNECTING", status)
                 }
 
                 BluetoothGatt.STATE_CONNECTED -> {
                     connectionState = BleConnectionState.CONNECTED
-                    Log.i(TAG, "onConnectionStateChange: STATE_CONNECTED")
+                    logConnectionStateChange("STATE_CONNECTED", status)
                     gatt.discoverServices()
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
-                    Log.i(TAG, "onConnectionStateChange: STATE_DISCONNECTED")
-                    gotDisconnected(gatt)
+                    logConnectionStateChange("STATE_DISCONNECTED", status)
+                    // source: https://cs.android.com/android/platform/superproject/+/master:system/bt/stack/include/gatt_api.h;l=65?q=gatt_api.h
+                    gotDisconnected(gatt, status in 0x80..0x89)
                 }
             }
         }
@@ -231,7 +232,7 @@ class WheelConnection @Inject constructor(
         }
     }
 
-    private fun gotDisconnected(gatt: BluetoothGatt? = null) {
+    private fun gotDisconnected(gatt: BluetoothGatt? = null, failed: Boolean = false) {
         gotwayWheel = null
         veteranWheel = null
         wheelData.clear()
@@ -239,8 +240,15 @@ class WheelConnection @Inject constructor(
         if (shouldStayConnected) {
             connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
             gatt?.let {
-                Log.i(TAG, "Attempt to reconnect")
-                it.connect()
+                if (failed) {
+                    Log.i(TAG, "Connection failed, disconnect then try reconnecting with scanning")
+                    it.disconnect()
+                    it.close()
+                    reconnectDevice(it.device.address)
+                } else {
+                    Log.i(TAG, "Attempt to reconnect directly")
+                    it.connect()
+                }
             }
         } else {
             connectionState = BleConnectionState.DISCONNECTED
@@ -292,9 +300,11 @@ class WheelConnection @Inject constructor(
         gatt.writeDescriptor(desc)
     }
 
+    private fun logConnectionStateChange(text: String, status: Int) =
+        Log.i(TAG, "onConnectionStateChange: $text, status: 0x${status.toString(16)}")
+
     companion object {
         private const val TAG = "WheelConnection"
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
-
     }
 }
