@@ -30,7 +30,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
                 if (deviceFound.device.address == reconnectToAddr) {
                     stopLeScan()
                     Log.i(TAG, "Reconnect to already connect device: $deviceAddr")
-                    wheelConnection.connectDevice(deviceFound)
+                    wheelConnection.connectDeviceFound(deviceFound)
                 }
             }.find()
 
@@ -60,7 +60,7 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
             if (!offloadedFilteringSupported && result.device.address != deviceAddr) return
 
             val found = DeviceFound(result.device, DeviceFoundFrom.SCAN, result.scanRecord)
-            wheelConnection.connectDevice(found)
+            wheelConnection.connectDeviceFound(found)
 
             scannerWrapper.stop()
             isScanning = false

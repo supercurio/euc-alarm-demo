@@ -65,14 +65,14 @@ class WheelConnection @Inject constructor(
     private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNKNOWN)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
-    fun reconnectDevice(deviceAddr: String) {
+    fun reconnectDeviceAddr(deviceAddr: String) {
         registerBtStateChangeReceiver()
         findReconnectWheel.reconnectToAddr = deviceAddr // to help deviceName resolve
         connectionState = BleConnectionState.SCANNING
         findReconnectWheel.findAndReconnect(context, deviceAddr)
     }
 
-    fun connectDevice(inputDeviceToConnect: DeviceFound) {
+    fun connectDeviceFound(inputDeviceToConnect: DeviceFound) {
         Log.i(TAG, "connectDevice($inputDeviceToConnect)")
         findReconnectWheel.stopLeScan()
 
@@ -118,6 +118,11 @@ class WheelConnection @Inject constructor(
                 doConnect(deviceToConnect.device)
             }
         }
+    }
+
+    fun connectAlreadyConnectedDevice(device: BluetoothDevice) {
+        connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
+        doConnect(device)
     }
 
     fun disconnectDevice() {
@@ -244,7 +249,7 @@ class WheelConnection @Inject constructor(
                     Log.i(TAG, "Connection failed, disconnect then try reconnecting with scanning")
                     it.disconnect()
                     it.close()
-                    reconnectDevice(it.device.address)
+                    reconnectDeviceAddr(it.device.address)
                 } else {
                     Log.i(TAG, "Attempt to reconnect directly")
                     it.connect()

@@ -41,7 +41,7 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
         if (known) {
             appLifecycle.on()
-            wheelConnection.reconnectDevice(device.address)
+            wheelConnection.connectAlreadyConnectedDevice(device)
         }
     }
 

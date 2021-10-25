@@ -87,12 +87,12 @@ class AppService : Service() {
         when (val state = appStateStore.loadState()) {
             is ConnectedState -> {
                 Log.i(TAG, "Reconnect device: ${state.deviceAddr}")
-                wheelConnection.reconnectDevice(state.deviceAddr)
+                wheelConnection.reconnectDeviceAddr(state.deviceAddr)
             }
 
             is RecordingState -> {
                 Log.i(TAG, "Reconnect device and resume recording")
-                wheelConnection.reconnectDevice(state.deviceAddr)
+                wheelConnection.reconnectDeviceAddr(state.deviceAddr)
                 wheelBleRecorder.start(applicationContext, state.deviceAddr)
             }
         }

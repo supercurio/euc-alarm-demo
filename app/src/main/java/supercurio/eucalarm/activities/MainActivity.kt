@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
                                         Text(
                                             modifier = Modifier.clickable(onClick = {
                                                 dismiss()
-                                                wheelConnection.connectDevice(it)
+                                                wheelConnection.connectDeviceFound(it)
                                             }),
                                             text = "${it.device.name}\n${it.device.address}: " +
                                                     "found: ${it.from}${it.rssi?.let { ", ${it}dBm" } ?: ""}"
