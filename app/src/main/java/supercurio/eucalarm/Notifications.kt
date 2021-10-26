@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.activities.MainActivity
+import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.service.AppService
 import java.text.SimpleDateFormat
@@ -22,7 +23,8 @@ import javax.inject.Singleton
 @Singleton
 class Notifications @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val wheelConnection: WheelConnection
+    private val wheelConnection: WheelConnection,
+    private val recorder: WheelBleRecorder,
 ) {
 
     private val nm = context.getSystemService<NotificationManager>()!!
@@ -57,30 +59,26 @@ class Notifications @Inject constructor(
         }
     }
 
-    fun foregroundServiceNotificationBuilder(title: String): Notification {
-
-        val stopServicePi = PendingIntent.getBroadcast(
-            context, 0, Intent(AppService.STOP_BROADCAST),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val disconnectPi = PendingIntent.getBroadcast(
-            context, 0, Intent(AppService.DISCONNECT_BROADCAST),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID)
+    fun foregroundServiceNotificationBuilder(title: String): Notification =
+        NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID)
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle(title)
             .setContentIntent(startActivityPi)
-            .addAction(0, "Stop", stopServicePi)
+            .addAction(0, "Stop", pendingIntentFor(AppService.STOP_BROADCAST))
             .apply {
                 if (wheelConnection.connectionStateFlow.value.canDisconnect)
-                    addAction(0, "Disconnect wheel", disconnectPi)
+                    addAction(
+                        0, "Disconnect wheel",
+                        pendingIntentFor(AppService.DISCONNECT_BROADCAST)
+                    )
+                if (recorder.isRecording.value)
+                    addAction(
+                        0, "Disconnect wheel",
+                        pendingIntentFor(AppService.STOP_RECORDING_BROADCAST)
+                    )
             }
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
-    }
 
     fun updateOngoing(title: String, storeCurrent: Boolean = true) {
         if (muted) return
@@ -118,6 +116,11 @@ class Notifications @Inject constructor(
         rollbackOngoing()
         nm.cancel(ALERT_ID)
     }
+
+    private fun pendingIntentFor(action: String) = PendingIntent.getBroadcast(
+        context, 0, Intent(action),
+        PendingIntent.FLAG_IMMUTABLE
+    )
 
     private val startActivityPi
         get() = PendingIntent.getActivity(

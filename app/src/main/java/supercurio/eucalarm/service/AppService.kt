@@ -113,6 +113,7 @@ class AppService : Service() {
             when (intent.action) {
                 STOP_BROADCAST -> appLifecycle.off()
                 DISCONNECT_BROADCAST -> wheelConnection.disconnectDevice()
+                STOP_RECORDING_BROADCAST -> wheelBleRecorder.shutDown()
             }
         }
     }
@@ -139,6 +140,7 @@ class AppService : Service() {
 
         const val STOP_BROADCAST = "StopAndExitService"
         const val DISCONNECT_BROADCAST = "DisconnectBluetoothDevice"
+        const val STOP_RECORDING_BROADCAST = "StopRecording"
 
         private var startedBySystem = true
 
