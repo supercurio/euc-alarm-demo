@@ -3,8 +3,10 @@ package supercurio.eucalarm.oems
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.DataParsing.capSize
 import supercurio.eucalarm.utils.DataParsing.declareByteArray
+import supercurio.eucalarm.utils.DataParsing.div
 import supercurio.eucalarm.utils.DataParsing.endsWith
 import supercurio.eucalarm.utils.DataParsing.startsWith
+import supercurio.eucalarm.utils.DataParsing.uint
 import supercurio.eucalarm.utils.showBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -52,8 +54,8 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
 
         val voltage = frame.short / 100.0
         val speed = frame.short / 10.0
-        val distance = frame.int.reversed() / 1000.0
-        val totalDistance = frame.int.reversed() / 1000.0
+        val distance = frame.uintReversed / 1000.0
+        val totalDistance = frame.uintReversed / 1000.0
 
         val current = frame.short / 10.0
         val temperature = frame.short / 100.0
@@ -74,12 +76,13 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
         )
     }
 
-    private fun Int.reversed(): Int {
-        val buffer = ByteBuffer.allocate(Int.SIZE_BYTES)
-        buffer.putInt(this)
-        val revBuf = byteArrayOf(buffer[2], buffer[3], buffer[0], buffer[1])
-        return ByteBuffer.wrap(revBuf).int
-    }
+    private val ByteBuffer.uintReversed: UInt
+        get() {
+            val tmp = ByteBuffer.allocate(Int.SIZE_BYTES)
+            tmp.putInt(this.int)
+            val revBuf = byteArrayOf(tmp[2], tmp[3], tmp[0], tmp[1])
+            return ByteBuffer.wrap(revBuf).uint
+        }
 
     companion object {
         private const val FRAME_SIZE = 36

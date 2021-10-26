@@ -2,7 +2,15 @@ package supercurio.eucalarm.oems
 
 import android.util.Log
 import supercurio.eucalarm.data.WheelDataInterface
+import supercurio.eucalarm.utils.DataParsing.byte
+import supercurio.eucalarm.utils.DataParsing.bytes
 import supercurio.eucalarm.utils.DataParsing.capSize
+import supercurio.eucalarm.utils.DataParsing.declareByteArray
+import supercurio.eucalarm.utils.DataParsing.div
+import supercurio.eucalarm.utils.DataParsing.negative
+import supercurio.eucalarm.utils.DataParsing.toBoolean
+import supercurio.eucalarm.utils.DataParsing.uint
+import supercurio.eucalarm.utils.DataParsing.ushort
 import supercurio.eucalarm.utils.showBuffer
 import supercurio.eucalarm.utils.toHexString
 import java.nio.ByteBuffer
@@ -62,19 +70,17 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
                 frame.position(2)
 
                 // 2-3
-                val voltage = frame.short / 67.2 * 84.0 / 100.0
+                val voltage = frame.ushort / 67.2 * 84.0 / 100.0
                 // 4-5
                 val speed = frame.short * 3.6 / 100
                 // 6-9
-                val distance = frame.int / 1000.0
+                val distance = frame.uint / 1000.0
                 // 10-11
                 val current = frame.short / 100.0
                 // 12-13
                 val temperature = frame.short / 340.0 + 36.53
                 // 14-17
-                val unknown1 =
-                    listOf(frame.get(), frame.get(), frame.get(), frame.get())
-                        .toHexString()
+                val unknown1 = frame.bytes(4).toHexString()
 
                 wheelData.voltage = voltage
                 wheelData.speed = speed.negative
@@ -96,33 +102,22 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
                 frame.position(2)
 
                 // 2-5
-                val totalDistance = frame.int / 1000.0
+                val totalDistance = frame.uint / 1000.0
                 // 6
-                val tmp = frame.get()
+                val tmp = frame.byte
                 val pedalMode = (tmp.toInt() shr 4).toString(16)
                 val speedAlarms = (tmp.toInt() and 0x0F).toString(16)
                 // 7-12
-                val unknown2 = listOf(
-                    frame.get(),
-                    frame.get(),
-                    frame.get(),
-                    frame.get(),
-                    frame.get(),
-                    frame.get()
-                ).toHexString()
+                val unknown2 = frame.bytes(6).toHexString()
                 // 13
-                val ledMode = frame.get()
+                val ledMode = frame.byte
                 // 14
-                val beeper = frame.get()
+                val beeper = frame.byte
                 // 15-17
-                val unknown3 = listOf(
-                    frame.get(),
-                    frame.get(),
-                    frame.get(),
-                )
+                val unknown3 = frame.bytes(3).toHexString()
 
                 wheelData.totalDistance = totalDistance
-                wheelData.beeper = beeper.toInt() != 0
+                wheelData.beeper = beeper.toBoolean()
 
                 wheelData.gotNewData()
 
@@ -142,16 +137,10 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
         const val DATA_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
         private const val MAX_RING_BUFFER_SIZE = 40
-        private val END_SEQUENCE = listOf<Byte>(0x18, 0x5A, 0x5A, 0x5A, 0x5A)
+        private val END_SEQUENCE = declareByteArray(0x18, 0x5A, 0x5A, 0x5A, 0x5A).asList()
 
         private const val DEBUG_LOGGING = false
         private const val FRAME_LOGGING = false
         private const val DATA_LOGGING = false
     }
 }
-
-private val Double.negative
-    get() = when (this) {
-        0.0 -> 0.0
-        else -> -this
-    }

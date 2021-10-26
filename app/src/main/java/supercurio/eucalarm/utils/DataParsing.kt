@@ -1,5 +1,6 @@
 package supercurio.eucalarm.utils
 
+import java.nio.ByteBuffer
 import java.util.*
 
 object DataParsing {
@@ -29,4 +30,25 @@ object DataParsing {
         return true
     }
 
+    fun Byte.toBoolean(): Boolean = this != 0.toByte()
+
+    val Double.negative
+        get() = when (this) {
+            0.0 -> 0.0
+            else -> -this
+        }
+
+    fun ByteBuffer.bytes(size: Int): ByteArray {
+        val dst = ByteArray(size)
+        get(dst)
+        return dst
+    }
+
+    val ByteBuffer.ushort: UShort get() = short.toUShort()
+    val ByteBuffer.uint: UInt get() = int.toUInt()
+    val ByteBuffer.uByte: UByte get() = get().toUByte()
+    val ByteBuffer.byte: Byte get() = get()
+
+    operator fun UInt.div(d: Double): Double = this.toDouble() / d;
+    operator fun UShort.div(d: Double): Double = this.toDouble() / d;
 }
