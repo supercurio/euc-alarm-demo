@@ -1,12 +1,13 @@
 package supercurio.eucalarm.oems
 
-import android.util.Log
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.DataParsing.byte
 import supercurio.eucalarm.utils.DataParsing.bytes
 import supercurio.eucalarm.utils.DataParsing.capSize
 import supercurio.eucalarm.utils.DataParsing.declareByteArray
 import supercurio.eucalarm.utils.DataParsing.div
+import supercurio.eucalarm.utils.DataParsing.eprintln
+import supercurio.eucalarm.utils.DataParsing.findSequence
 import supercurio.eucalarm.utils.DataParsing.negative
 import supercurio.eucalarm.utils.DataParsing.toBoolean
 import supercurio.eucalarm.utils.DataParsing.uint
@@ -17,48 +18,89 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 class GotwayWheel(val wheelData: WheelDataInterface) {
 
     private val ringBuffer = ArrayDeque<Byte>(MAX_RING_BUFFER_SIZE)
     private val frame = ByteBuffer.allocate(24)
 
+    var packets = 0
+    var lostPackets = 0
 
-    fun findFrame(data: ByteArray) {
-        if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
+    fun findFrame(input: ByteArray) {
+        /*
+         * Packet dropped simulation
+         */
+        packets++
+        if (SIMULATE_DROP_PACKETS && Random.nextInt(100) - SIMULATE_DROP_PACKETS_PERCENTS < 0) {
+            eprintln("Simulate dropped packet")
+            lostPackets++
+            return
+        }
 
-        ringBuffer.capSize(MAX_RING_BUFFER_SIZE, data)
+        if (LOG_LOSS) println(
+            "Packets: $packets, lost: $lostPackets, " +
+                    "loss: ${String.format("%.2f", 100.0 * lostPackets / packets)}%"
+        )
 
-        ringBuffer.addAll(data.asList())
 
-        val bufferList = ringBuffer.toList()
+        /*
+         * Rebuild frames
+         */
+        if (DEBUG_LOGGING) println("input:\n${input.showBuffer()}")
 
-        // check if we got an end sequence
-        val index = Collections.indexOfSubList(bufferList, END_SEQUENCE)
-        if (index != -1) {
+        ringBuffer.capSize(MAX_RING_BUFFER_SIZE, input)
+        ringBuffer.addAll(input.asList())
 
-            if (DEBUG_LOGGING) {
-                println("BufferList:\n" + bufferList.toByteArray().showBuffer())
-                println("index: $index")
-            }
+        // return here if the buffer doesn't contain enough data for a frame
+        if (ringBuffer.size < FRAME_SIZE) return
 
-            frame.clear()
-            try {
-                frame.put(bufferList.subList(0, 24).toByteArray())
-            } catch (t: Throwable) {
-                Log.e(TAG, "Invalid buffer for frame: ${bufferList.toHexString()}")
-            }
+        val frameBuffer = ringBuffer.toList()
 
-            if (FRAME_LOGGING) {
-                val frameType = if (frame[18] == 0.toByte()) "A" else "B"
-                println("Frame $frameType:\n${frame.array().showBuffer()}")
-            }
+        // check if we can find a footer
+        if (SIMULATE_DROP_PACKETS) println("Frame buffer:\n${frameBuffer.showBuffer()}")
+        val footerPos = frameBuffer.findSequence(FOOTER)
 
-            decodeFrame(frame)
+        // then, if we found a footer
+        if (footerPos != -1) {
 
-            val next = bufferList.subList(index + END_SEQUENCE.size, bufferList.size)
+            // clear ring buffer and add post footer data
+            val next = frameBuffer.subList(footerPos + FOOTER.size, frameBuffer.size)
             ringBuffer.clear()
             ringBuffer.addAll(next)
+
+            // find header position
+            val headerPos = frameBuffer.findSequence(HEADER)
+            if (headerPos == -1) {
+                eprintln("Found footer but no header, likely due to packet loss")
+                return
+            }
+
+            if (headerPos > footerPos) {
+                eprintln("Found header at the wrong position")
+                return
+            }
+
+            val frameSizeFound = footerPos - headerPos + FOOTER.size
+            if (frameSizeFound != FRAME_SIZE) {
+                eprintln("Invalid frame size found: $frameSizeFound")
+                return
+            }
+
+            if (frameSizeFound == FRAME_SIZE) {
+                try {
+                    frame.clear()
+                    frame.put(frameBuffer.subList(headerPos, headerPos + FRAME_SIZE).toByteArray())
+                    if (FRAME_LOGGING) {
+                        val frameType = if (frame[18] == 0.toByte()) "A" else "B"
+                        println("Frame $frameType:\n${frame.array().showBuffer()}")
+                    }
+                    decodeFrame(frame)
+                } catch (t: Throwable) {
+                    eprintln("Invalid frame: ${frameBuffer.toHexString()}")
+                }
+            }
         }
     }
 
@@ -131,16 +173,21 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
     }
 
     companion object {
-        private const val TAG = "GotwayWheel"
 
         const val SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb"
         const val DATA_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
+        private const val FRAME_SIZE = 24
         private const val MAX_RING_BUFFER_SIZE = 40
-        private val END_SEQUENCE = declareByteArray(0x18, 0x5A, 0x5A, 0x5A, 0x5A).asList()
+        private val HEADER = declareByteArray(0x55, 0xaa).asList()
+        private val FOOTER = declareByteArray(0x18, 0x5a, 0x5a, 0x5a, 0x5a).asList()
 
         private const val DEBUG_LOGGING = false
         private const val FRAME_LOGGING = false
         private const val DATA_LOGGING = false
+
+        private const val SIMULATE_DROP_PACKETS_PERCENTS = 0
+        private const val SIMULATE_DROP_PACKETS = SIMULATE_DROP_PACKETS_PERCENTS > 0
+        private const val LOG_LOSS = false
     }
 }

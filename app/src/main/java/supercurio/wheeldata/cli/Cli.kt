@@ -33,11 +33,11 @@ fun main() {
             val dateTime = formatter.format(dataTimeMs)
 
             line += "${dateTime}$d"
-            line += "${tripDistance?.toFloat() ?: 0}$d"
-            line += "${totalDistance?.toFloat() ?: 0}$d"
-            line += "${speed?.toFloat() ?: 0}$d"
-            line += "${voltage?.toFloat() ?: 0}$d"
-            line += "${current?.toFloat() ?: 0}$d"
+            line += "${tripDistance ?: 0}$d"
+            line += "${totalDistance ?: 0}$d"
+            line += "${speed ?: 0}$d"
+            line += "${voltage ?: 0}$d"
+            line += "${current ?: 0}$d"
             line += "0$d"
             line += "0$d"
             line += "${temperature?.toFloat() ?: 0}"

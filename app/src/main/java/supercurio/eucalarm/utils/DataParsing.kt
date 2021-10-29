@@ -10,8 +10,8 @@ object DataParsing {
         .toByteArray()
 
     // cap the size of the ring buffer to its maximum
-    fun <E> ArrayDeque<E>.capSize(maxRingBufferSize: Int, data: ByteArray) {
-        val toRemove = size + data.size - maxRingBufferSize
+    fun <E> ArrayDeque<E>.capSize(maxRingBufferSize: Int, incomingData: ByteArray) {
+        val toRemove = size + incomingData.size - maxRingBufferSize
         if (toRemove > 0) (0 until toRemove).forEach { _ -> remove() }
     }
 
@@ -49,6 +49,10 @@ object DataParsing {
     val ByteBuffer.uByte: UByte get() = get().toUByte()
     val ByteBuffer.byte: Byte get() = get()
 
-    operator fun UInt.div(d: Double): Double = this.toDouble() / d;
-    operator fun UShort.div(d: Double): Double = this.toDouble() / d;
+    operator fun UInt.div(d: Double): Double = this.toDouble() / d
+    operator fun UShort.div(d: Double): Double = this.toDouble() / d
+
+    fun <E> List<E>.findSequence(sequence: List<E>) = Collections.indexOfSubList(this, sequence)
+
+    fun <T> eprintln(value: T) = System.err.println(value)
 }

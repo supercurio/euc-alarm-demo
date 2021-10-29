@@ -24,6 +24,8 @@ fun ByteArray.showBuffer(): String {
     return sb.toString()
 }
 
+fun List<Byte>.showBuffer() = toByteArray().showBuffer()
+
 val Context.directBootContext: Context
     get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         createDeviceProtectedStorageContext()

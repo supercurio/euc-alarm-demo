@@ -50,6 +50,7 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    // TODO: make a better presentation to highlight Speed, Voltage, Motor current and main actions
 
     private val activityScope = MainScope() + CoroutineName(TAG)
 
