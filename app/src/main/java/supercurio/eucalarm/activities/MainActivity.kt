@@ -50,7 +50,9 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    // TODO: make a better presentation to highlight Speed, Voltage, Motor current and main actions
+    // TODO:
+    //  Make a better presentation to highlight Speed, Voltage, Motor current and main actions
+    //  Give a voltage setting picker for Gotway/Begode wheels (67.2, 84.0, 100.8)
 
     private val activityScope = MainScope() + CoroutineName(TAG)
 
