@@ -18,7 +18,7 @@ fun main() {
     val input = File("/tmp/sample.bwr").inputStream().buffered()
 
     val output = File("/tmp/out.csv").outputStream().bufferedWriter()
-    val header = "datetime,distance,distance_total,speed,voltage,current,power,battery,temp\n"
+    val header = "datetime,distance,distance_total,speed,voltage,current,power,battery,temp,tilt\n"
     output.write(header)
 
 
@@ -40,7 +40,8 @@ fun main() {
             line += "${current ?: 0}$d"
             line += "0$d"
             line += "0$d"
-            line += "${temperature?.toFloat() ?: 0}"
+            line += "${temperature ?: 0}$d"
+            line += "${tilt ?: 0}"
             line += "\n"
             output.write(line)
         }

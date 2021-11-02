@@ -38,6 +38,11 @@ interface WheelDataInterface {
     var temperature: Double?
 
     /**
+     * Wheel tilt
+     */
+    var tilt: Double?
+
+    /**
      * Beeper status
      */
     var beeper: Boolean

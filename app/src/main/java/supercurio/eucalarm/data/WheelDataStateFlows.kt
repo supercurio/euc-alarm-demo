@@ -57,6 +57,13 @@ class WheelDataStateFlows @Inject constructor() : WheelDataInterface {
             temperatureFlow.value = value
         }
 
+    val tiltFlow = MutableStateFlow<Double?>(null)
+    override var tilt
+        get() = tiltFlow.value
+        set(value) {
+            tiltFlow.value = value
+        }
+
     /**
      * Beeper status
      */

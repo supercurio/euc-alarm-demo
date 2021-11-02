@@ -46,7 +46,7 @@ object DataParsing {
 
     val ByteBuffer.ushort: UShort get() = short.toUShort()
     val ByteBuffer.uint: UInt get() = int.toUInt()
-    val ByteBuffer.uByte: UByte get() = get().toUByte()
+    val ByteBuffer.ubyte: UByte get() = get().toUByte()
     val ByteBuffer.byte: Byte get() = get()
 
     operator fun UInt.div(d: Double): Double = this.toDouble() / d

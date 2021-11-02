@@ -11,6 +11,7 @@ class WheelDataPrimitives(
     override var totalDistance: Double? = null
     override var current: Double? = null
     override var temperature: Double? = null
+    override var tilt: Double? = null
     override var beeper = false
 
     override fun gotNewData(end: Boolean) {
