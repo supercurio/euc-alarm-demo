@@ -5,7 +5,6 @@ import android.util.Log
 import supercurio.eucalarm.R
 import java.io.File
 import java.io.InputStream
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -62,8 +61,8 @@ class RecordingProvider(
             destDir.mkdirs()
 
             val date = Calendar.getInstance().time
-            val dateFormat: DateFormat = SimpleDateFormat("yyyy-mm-dd_HH:mm:ss", Locale.ROOT)
-            val strDate: String = dateFormat.format(date)
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.ROOT)
+            val strDate = dateFormat.format(date)
 
             val name = deviceName ?: "no-name"
             val filename = "$name-$strDate.bwr"

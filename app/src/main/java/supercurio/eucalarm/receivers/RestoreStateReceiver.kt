@@ -8,6 +8,7 @@ import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.di.AppLifecycle
+import supercurio.eucalarm.log.AppLog
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -19,8 +20,13 @@ class RestoreStateReceiver : BroadcastReceiver() {
     @Inject
     lateinit var appLifecycle: AppLifecycle
 
+    @Inject
+    lateinit var appLog: AppLog
+
     override fun onReceive(context: Context, intent: Intent) {
         Log.i(TAG, "onReceive: ${intent.action}")
+
+        appLog.log("Started by intent: ${intent.action}")
 
         if (!VALID_INTENT_ACTIONS.contains(intent.action)) return
 

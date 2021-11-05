@@ -24,6 +24,7 @@ import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.feedback.AlertFeedback
+import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.power.PowerManagement
 import javax.inject.Inject
 
@@ -57,12 +58,14 @@ class AppService : Service() {
     lateinit var notifications: Notifications
 
     @Inject
-    lateinit var scopeProvider: CoroutineScopeProvider
+    lateinit var scopes: CoroutineScopeProvider
+
+    @Inject
+    lateinit var appLog: AppLog
 
 
     override fun onCreate() {
         super.onCreate()
-
         Log.i(TAG, "onCreate")
 
         registerReceiver(broadcastReceiver, IntentFilter().apply {
@@ -70,6 +73,7 @@ class AppService : Service() {
             addAction(DISCONNECT_BROADCAST)
         })
 
+        appLog.log("Service created - by system: $startedBySystem")
         // when the service is started by the system after being killed or a crash
         if (startedBySystem) appStateStore.restoreState(appLifecycle)
 
@@ -97,6 +101,7 @@ class AppService : Service() {
             }
         }
 
+        appLog.log("Service started")
         return START_STICKY
     }
 
@@ -104,6 +109,7 @@ class AppService : Service() {
         Log.i(TAG, "onDestroy")
         unregisterReceiver(broadcastReceiver)
 
+        appLog.log("Service destroyed")
         startedBySystem = true
     }
 
@@ -118,7 +124,7 @@ class AppService : Service() {
         }
     }
 
-    private fun updateNotificationBasedOnState() = scopeProvider.appScope.launch {
+    private fun updateNotificationBasedOnState() = scopes.app.launch {
         wheelConnection.connectionStateFlow.collect {
             val title = when (it) {
                 BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"

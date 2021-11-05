@@ -205,7 +205,7 @@ class WheelBleRecorder @Inject constructor(
         BleConnectionState.DISCONNECTED_RECONNECTING -> ConnectionState.DISCONNECTED_RECONNECTING
         BleConnectionState.CONNECTED -> ConnectionState.CONNECTED
         BleConnectionState.RECEIVING_DATA -> ConnectionState.RECEIVING_DATA
-        else -> ConnectionState.UNKNOWN
+        else -> ConnectionState.UNSET
     }.writeWireMessageTo(out)
 
     private fun Any.writeWireMessageTo(out: BufferedOutputStream?) {

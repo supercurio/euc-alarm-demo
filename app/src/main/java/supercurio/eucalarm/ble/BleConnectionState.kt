@@ -1,7 +1,7 @@
 package supercurio.eucalarm.ble
 
 enum class BleConnectionState(val canDisconnect: Boolean) {
-    UNKNOWN(
+    UNSET(
         canDisconnect = false
     ),
 

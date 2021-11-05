@@ -6,12 +6,16 @@ import android.util.Log
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.di.AppLifecycle
+import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.utils.directBootContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AppStateStore @Inject constructor(@ApplicationContext private val appContext: Context) {
+class AppStateStore @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    private val appLog: AppLog
+) {
     private val prefs: SharedPreferences = appContext
         .directBootContext
         .getSharedPreferences("app_state", Context.MODE_PRIVATE)
@@ -29,7 +33,6 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
                 is OnStateDefault -> putString(ON_SATE_DEFAULT, "")
                 is ConnectedState -> putString(CONNECTED_STATE, value.deviceAddr)
                 is RecordingState -> putString(RECORDING_STATE, value.deviceAddr)
-                else -> error("Invalid state")
             }
         }
         Log.i(TAG, "State set to $value")
@@ -39,10 +42,11 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
         loadState()
         Log.i(TAG, "Restore state")
 
+        appLog.log("Restore state: $appState")
+
         when (appState) {
             is OffState -> appLifecycle.off()
             is OnStateDefault, is ConnectedState, is RecordingState -> appLifecycle.on()
-            else -> Unit
         }
     }
 
@@ -63,7 +67,6 @@ class AppStateStore @Inject constructor(@ApplicationContext private val appConte
     companion object {
         private const val TAG = "AppStateStore"
 
-        const val UNDEFINED_SATE = "undefined"
         const val OFF_SATE = "off"
         const val ON_SATE_DEFAULT = "on"
         const val CONNECTED_STATE = "connected"

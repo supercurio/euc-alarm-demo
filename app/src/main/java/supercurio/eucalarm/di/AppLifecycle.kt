@@ -11,40 +11,26 @@ import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.feedback.AlertFeedback
+import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AppLifecycle @Inject constructor(@ApplicationContext private val context: Context) {
-
-    @Inject
-    lateinit var appStateStore: AppStateStore
-
-    @Inject
-    lateinit var scopeProvider: CoroutineScopeProvider
-
-    @Inject
-    lateinit var wheelData: WheelDataStateFlows
-
-    @Inject
-    lateinit var powerManagement: PowerManagement
-
-    @Inject
-    lateinit var wheelConnection: WheelConnection
-
-    @Inject
-    lateinit var alert: AlertFeedback
-
-    @Inject
-    lateinit var wheelBleRecorder: WheelBleRecorder
-
-    @Inject
-    lateinit var simulator: WheelBleSimulator
-
-    @Inject
-    lateinit var notifications: Notifications
+class AppLifecycle @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val appStateStore: AppStateStore,
+    private val scopeProvider: CoroutineScopeProvider,
+    private val wheelData: WheelDataStateFlows,
+    private val powerManagement: PowerManagement,
+    private val wheelConnection: WheelConnection,
+    private val alert: AlertFeedback,
+    private val wheelBleRecorder: WheelBleRecorder,
+    private val simulator: WheelBleSimulator,
+    private val notifications: Notifications,
+    private val appLog: AppLog,
+) {
 
     private var state = false
 
@@ -60,7 +46,6 @@ class AppLifecycle @Inject constructor(@ApplicationContext private val context: 
 
         AppService.enable(context, true)
     }
-
 
     fun off() {
         if (!state) return

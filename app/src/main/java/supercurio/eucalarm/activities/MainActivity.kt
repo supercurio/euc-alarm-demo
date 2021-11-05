@@ -38,6 +38,7 @@ import supercurio.eucalarm.ble.find.FindWheels
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.feedback.AlertFeedback
+import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
     // TODO:
     //  Make a better presentation to highlight Speed, Voltage, Motor current and main actions
     //  Give a voltage setting picker for Gotway/Begode wheels (67.2, 84.0, 100.8)
+    //  Show event log in UI, allow to share it or clear it
 
     private val activityScope = MainScope() + CoroutineName(TAG)
 
@@ -79,6 +81,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var simulator: WheelBleSimulator
+
+    @Inject
+    lateinit var appLog: AppLog
 
     private lateinit var player: WheelBlePlayer
 
@@ -204,6 +209,7 @@ class MainActivity : ComponentActivity() {
                                         Text(
                                             modifier = Modifier.clickable(onClick = {
                                                 dismiss()
+                                                appLog.log("User action → Connect device")
                                                 wheelConnection.connectDeviceFound(it)
                                             }),
                                             text = "${it.device.name}\n${it.device.address}: " +

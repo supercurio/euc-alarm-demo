@@ -12,7 +12,6 @@ import android.os.Vibrator
 import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -21,6 +20,7 @@ import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.di.CoroutineScopeProvider
+import supercurio.eucalarm.log.AppLog
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.system.measureTimeMillis
@@ -31,7 +31,8 @@ class AlertFeedback @Inject constructor(
     private val wheelDataStateFlows: WheelDataStateFlows,
     private val wheelConnection: WheelConnection,
     private val notifications: Notifications,
-    private val scopesProvider: CoroutineScopeProvider,
+    private val scopes: CoroutineScopeProvider,
+    private val appLog: AppLog,
 ) {
 
     /*
@@ -50,17 +51,14 @@ class AlertFeedback @Inject constructor(
 
     private var currentVibrationPattern: LongArray? = null
 
-    private val scope get() = scopesProvider.appScope
-
     fun setup() {
-
         Log.i(TAG, "Setup instance")
         audioManager = context.getSystemService()!!
         vibrator = context.getSystemService()!!
 
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
 
-        scope.launch {
+        scopes.app.launch {
             wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
                     true -> playAlert()
@@ -69,8 +67,8 @@ class AlertFeedback @Inject constructor(
             }
         }
 
-        scope.launch {
-            var previousState = BleConnectionState.UNKNOWN
+        scopes.app.launch {
+            var previousState = BleConnectionState.UNSET
             wheelConnection.connectionStateFlow.collect { state ->
                 // Handle connection loss
                 val connectionLoss = when (state) {
@@ -85,12 +83,21 @@ class AlertFeedback @Inject constructor(
 
                 // Run Audio Tracks only if we should be connected to the wheel
                 when (state) {
+                    BleConnectionState.CONNECTING,
                     BleConnectionState.CONNECTED,
                     BleConnectionState.RECEIVING_DATA,
                     BleConnectionState.REPLAY,
-                    BleConnectionState.CONNECTING,
                     BleConnectionState.DISCONNECTED_RECONNECTING -> runTracks()
-                    else -> stopTracks()
+
+                    BleConnectionState.UNSET,
+                    BleConnectionState.DISCONNECTING,
+                    BleConnectionState.DISCONNECTED -> stopTracks()
+
+                    BleConnectionState.SYSTEM_ALREADY_CONNECTED,
+                    BleConnectionState.BLUETOOTH_OFF,
+                    BleConnectionState.SCANNING -> {
+                        // No change
+                    }
                 }
             }
         }
@@ -108,7 +115,6 @@ class AlertFeedback @Inject constructor(
         Log.i(TAG, "Shutdown")
         stopTracks()
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
-        scope.cancel()
         notifications.cancelAlerts()
     }
 
@@ -129,10 +135,12 @@ class AlertFeedback @Inject constructor(
         }
 
         notifications.notifyAlert()
+        appLog.log("Alert: start")
     }
 
     private fun stopAlert() {
         if (!tracksRunning) return
+        if (!isPlaying) return
         releaseAudioFocus(FOCUS_GAIN_ALERT)
 
         if (VIBRATE) stopVibration()
@@ -142,6 +150,7 @@ class AlertFeedback @Inject constructor(
         }
         isPlaying = false
         notifications.rollbackOngoing()
+        appLog.log("Alert: stop")
     }
 
     private fun runTracks() {
@@ -150,7 +159,9 @@ class AlertFeedback @Inject constructor(
         Log.i(TAG, "Run tracks")
 
         keepAliveTrack = AudioHelper.setupKeepAliveTrack()
-        alertTrack = AudioHelper.setupAlertTrack()
+        alertTrack = AudioHelper.setupAlertTrack().apply {
+            appLog.log("Audio setup done ($sampleRate Hz)")
+        }
     }
 
     private fun stopTracks() {
@@ -209,16 +220,20 @@ class AlertFeedback @Inject constructor(
 
             addedDevices?.forEach {
                 Log.i(TAG, "Added device ${audioDeviceInfoText(it)}")
-                if (tracksRunning && it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+                if (tracksRunning && it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    appLog.log("Bluetooth audio device added: ${it.productName}")
                     reconfigureAudioTracks()
+                }
             }
         }
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
             removedDevices?.forEach {
                 Log.i(TAG, "Removed device device ${audioDeviceInfoText(it)}")
-                if (tracksRunning && it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+                if (tracksRunning && it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    appLog.log("Bluetooth audio device removed: ${it.productName}")
                     reconfigureAudioTracks()
+                }
             }
         }
     }
@@ -231,7 +246,7 @@ class AlertFeedback @Inject constructor(
             vibratePattern(CONNECTION_LOSS_PATTERN)
             connectionLostTrack = AudioHelper.setupConnectionLossTrack()
 
-            scope.launch {
+            scopes.app.launch {
                 var measuredTimeMs: Long
                 while (connectionLostTrack != null) {
                     measuredTimeMs = measureTimeMillis {
@@ -278,20 +293,19 @@ class AlertFeedback @Inject constructor(
     }
 
     private fun logAudioInfo() {
-
         val lowLatency = context.packageManager
             .hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY)
         val audioPro = context.packageManager
             .hasSystemFeature(PackageManager.FEATURE_AUDIO_PRO)
 
+        Log.i(TAG, "lowLatency: $lowLatency, audioPro: $audioPro")
 
+        Log.i(TAG, "Audio devices info:")
         audioManager
             ?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             ?.forEach { info ->
                 Log.i(TAG, audioDeviceInfoText(info))
             }
-
-        Log.i(TAG, "lowLatency: $lowLatency, audioPro: $audioPro")
     }
 
     private val screenOffReceiver = object : BroadcastReceiver() {

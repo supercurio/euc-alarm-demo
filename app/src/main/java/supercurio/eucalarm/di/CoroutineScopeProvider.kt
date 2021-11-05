@@ -9,7 +9,7 @@ class CoroutineScopeProvider @Inject constructor() {
 
     private var _appScope: CoroutineScope? = null
 
-    val appScope
+    val app
         get() = _appScope ?: (CoroutineScope(Dispatchers.Default) + CoroutineName("AppScope"))
             .also { _appScope = it }
 

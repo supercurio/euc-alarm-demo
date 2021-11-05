@@ -4,7 +4,7 @@ package supercurio.wheeldata.recording;
 option java_multiple_files = true;
 
 enum ConnectionState {
-    UNKNOWN = 0;
+    UNSET = 0;
     BLUETOOTH_OFF = 1;
     DISCONNECTED = 2;
     DISCONNECTING = 3;

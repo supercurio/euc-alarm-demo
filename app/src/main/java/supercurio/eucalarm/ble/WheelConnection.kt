@@ -18,6 +18,7 @@ import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.ble.find.FindReconnectWheel
 import supercurio.eucalarm.data.WheelDataStateFlows
+import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.oems.VeteranWheel
 import supercurio.eucalarm.power.PowerManagement
@@ -32,10 +33,12 @@ class WheelConnection @Inject constructor(
     private val powerManagement: PowerManagement,
     private val appStateStore: AppStateStore,
     private val devicesNamesCache: DevicesNamesCache,
+    private val appLog: AppLog,
 ) {
-    private var connectionState = BleConnectionState.UNKNOWN
-        set(value) {
+    var connectionState = BleConnectionState.UNSET
+        private set(value) {
             Log.i(TAG, "ConnectionState change: $value")
+            appLog.log("Connection state: $value")
             field = value
             _connectionStateFlow.value = value
         }
@@ -62,7 +65,7 @@ class WheelConnection @Inject constructor(
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
     val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
-    private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNKNOWN)
+    private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNSET)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
     fun reconnectDeviceAddr(deviceAddr: String) {
@@ -103,13 +106,7 @@ class WheelConnection @Inject constructor(
         when (btManager.getConnectionState(deviceToConnect.device, BluetoothProfile.GATT)) {
             // already connected: connect if the connection is not already ready and we're not
             // trying to reconnect already
-            BluetoothGatt.STATE_CONNECTED -> {
-                if (_gatt == null) {
-                    connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
-                    doConnect(deviceToConnect.device)
-                }
-            }
-
+            BluetoothGatt.STATE_CONNECTED -> if (_gatt == null) doConnect(deviceToConnect.device)
             BluetoothGatt.STATE_CONNECTING -> Log.i(TAG, "Device already connecting")
 
             // disconnecting or disconnected, connect again
@@ -126,6 +123,7 @@ class WheelConnection @Inject constructor(
     }
 
     fun disconnectDevice() {
+        appLog.log("User action → Disconnect device")
         appStateStore.setState(OnStateDefault)
 
         if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
@@ -148,7 +146,7 @@ class WheelConnection @Inject constructor(
         connectionState = if (state)
             BleConnectionState.REPLAY
         else
-            BleConnectionState.UNKNOWN
+            BleConnectionState.UNSET
     }
 
     fun shutdown() {
@@ -206,7 +204,7 @@ class WheelConnection @Inject constructor(
                 BluetoothGatt.STATE_DISCONNECTED -> {
                     logConnectionStateChange("STATE_DISCONNECTED", status)
                     // source: https://cs.android.com/android/platform/superproject/+/master:system/bt/stack/include/gatt_api.h;l=65?q=gatt_api.h
-                    gotDisconnected(gatt, status in 0x80..0x89)
+                    gotDisconnected(gatt = gatt, failed = status in 0x80..0x89)
                 }
             }
         }
@@ -217,6 +215,7 @@ class WheelConnection @Inject constructor(
             veteranWheel = VeteranWheel(wheelData)
             setupGotwayType()
             connectionState = BleConnectionState.RECEIVING_DATA
+            appLog.log("Successful connection to $deviceName (${gatt.device.address})")
         }
 
         var id = 0L
