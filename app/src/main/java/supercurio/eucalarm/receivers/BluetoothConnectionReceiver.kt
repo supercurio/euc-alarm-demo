@@ -44,7 +44,7 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
         Log.i(TAG, "Name from device: ${device.name}, from cache: $name, is known: $known")
 
-        if (known && wheelConnection.connectionState == BleConnectionState.UNSET) {
+        if (known && CONNECT_ALREADY_CONNECTED_STATES.contains(wheelConnection.connectionState)) {
             appLog.log("Connect following another app connection to known device: ${device.name}")
             appLifecycle.on()
             wheelConnection.connectAlreadyConnectedDevice(device)
@@ -53,5 +53,11 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "BluetoothConnectionReceiver"
+
+        private val CONNECT_ALREADY_CONNECTED_STATES = listOf(
+            BleConnectionState.UNSET,
+            BleConnectionState.DISCONNECTED,
+            BleConnectionState.SYSTEM_ALREADY_CONNECTED,
+        )
     }
 }
