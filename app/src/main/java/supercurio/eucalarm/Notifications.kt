@@ -26,7 +26,6 @@ class Notifications @Inject constructor(
     private val wheelConnection: WheelConnection,
     private val recorder: WheelBleRecorder,
 ) {
-
     private val nm = context.getSystemService<NotificationManager>()!!
 
     var muted = false
@@ -71,11 +70,11 @@ class Notifications @Inject constructor(
                         0, "Disconnect wheel",
                         pendingIntentFor(AppService.DISCONNECT_BROADCAST)
                     )
-                if (recorder.isRecording.value)
-                    addAction(
-                        0, "Disconnect wheel",
-                        pendingIntentFor(AppService.STOP_RECORDING_BROADCAST)
-                    )
+//                if (recorder.isRecording.value)
+//                    addAction(
+//                        0, "Stop Recording",
+//                        pendingIntentFor(AppService.STOP_RECORDING_BROADCAST)
+//                    )
             }
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()

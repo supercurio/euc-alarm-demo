@@ -78,6 +78,7 @@ class AppService : Service() {
         if (startedBySystem) appStateStore.restoreState(appLifecycle)
 
         updateNotificationBasedOnState()
+        updateNotificationBasedOnRecording()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -126,18 +127,31 @@ class AppService : Service() {
 
     private fun updateNotificationBasedOnState() = scopes.app.launch {
         wheelConnection.connectionStateFlow.collect {
-            val title = when (it) {
-                BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"
-                BleConnectionState.CONNECTING -> "Connecting to ${wheelConnection.deviceName}"
-                BleConnectionState.RECEIVING_DATA -> "Receiving data from ${wheelConnection.deviceName}"
-                BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
-                BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
-                BleConnectionState.BLUETOOTH_OFF -> "Bluetooth is off"
-                BleConnectionState.DISCONNECTED -> "Waiting for connection"
-                else -> "Standby"
-            }
-
+            val title = notificationTextBasedOnConnectionState(it)
             notifications.updateOngoing(title)
+        }
+    }
+
+    private fun notificationTextBasedOnConnectionState(state: BleConnectionState) =
+        when (state) {
+            BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"
+            BleConnectionState.CONNECTING -> "Connecting to ${wheelConnection.deviceName}"
+            BleConnectionState.RECEIVING_DATA -> "Receiving data from ${wheelConnection.deviceName}"
+            BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
+            BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
+            BleConnectionState.BLUETOOTH_OFF -> "Bluetooth is off"
+            BleConnectionState.DISCONNECTED -> "Waiting for connection"
+            else -> "Standby"
+        }
+
+    private fun updateNotificationBasedOnRecording() = scopes.app.launch {
+        wheelBleRecorder.isRecording.collect { isRecording ->
+            if (isRecording)
+                notifications.updateOngoing("Recording from ${wheelConnection.deviceName}")
+            else {
+                val title = notificationTextBasedOnConnectionState(wheelConnection.connectionState)
+                notifications.updateOngoing(title)
+            }
         }
     }
 

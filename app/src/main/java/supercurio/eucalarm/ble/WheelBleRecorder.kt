@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
+import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.RecordingState
@@ -23,7 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class WheelBleRecorder @Inject constructor(
     private val connection: WheelConnection,
-    private val appStateStore: AppStateStore
+    private val appStateStore: AppStateStore,
 ) {
     private var startTime: NowAndTimestamp? = null
     private var out: BufferedOutputStream? = null
@@ -73,6 +74,7 @@ class WheelBleRecorder @Inject constructor(
     }
 
     private fun stop() {
+        isRecording.value = false
         out?.flush()
         out?.close()
         characteristicsKeys = null
@@ -80,16 +82,16 @@ class WheelBleRecorder @Inject constructor(
         connection.device?.address?.let {
             appStateStore.setState(ConnectedState(it))
         }
-        isRecording.value = false
     }
 
     private fun doRecording(context: Context) {
+        isRecording.value = true
+
         // save app state if we record and have a connection to a device
         connection.device?.address?.let { addr ->
             appStateStore.setState(RecordingState(addr))
         }
 
-        isRecording.value = true
         characteristicsKeys = CharacteristicsKeys()
         startTime = TimeUtils.timestampNow()
         out = RecordingProvider.generateRecordingFilename(
