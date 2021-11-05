@@ -161,11 +161,11 @@ class AlertFeedback @Inject constructor(
         stopAlert()
 
         alertTrack?.apply {
+            alertTrack = null
             pause()
             flush()
             stop()
             release()
-            alertTrack = null
         }
 
         keepAliveTrack?.apply {
