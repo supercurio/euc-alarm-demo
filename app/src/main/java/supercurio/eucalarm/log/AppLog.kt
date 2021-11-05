@@ -36,8 +36,7 @@ class AppLog @Inject constructor(
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.ROOT)
                 val strDate = dateFormat.format(date)
 
-                write("$strDate  $string".toByteArray())
-                write("\n".toByteArray())
+                write("$strDate  $string\n".toByteArray())
                 flush()
             }
         }
