@@ -50,7 +50,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
          */
         if (DEBUG_LOGGING) println("input:\n${input.showBuffer()}")
 
-        ringBuffer.capSize(MAX_RING_BUFFER_SIZE, input)
+        ringBuffer.capSize(input, MAX_RING_BUFFER_SIZE)
         ringBuffer.addAll(input.asList())
 
         // return here if the buffer doesn't contain enough data for a frame

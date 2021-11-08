@@ -37,7 +37,7 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
             ringBuffer.clear()
 
         // prevent the buffer to grow
-        ringBuffer.capSize(FRAME_SIZE, data)
+        ringBuffer.capSize(data, FRAME_SIZE)
 
         ringBuffer.addAll(data.asList())
 

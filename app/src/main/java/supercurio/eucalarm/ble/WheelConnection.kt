@@ -43,6 +43,8 @@ class WheelConnection @Inject constructor(
             _connectionStateFlow.value = value
         }
 
+    private var gattConnected = false
+
     private val findReconnectWheel = FindReconnectWheel(this)
 
     private var shouldStayConnected = false
@@ -76,8 +78,13 @@ class WheelConnection @Inject constructor(
     }
 
     fun connectDeviceFound(inputDeviceToConnect: DeviceFound) {
-        Log.i(TAG, "connectDevice($inputDeviceToConnect)")
+        Log.i(TAG, "connectDevice($inputDeviceToConnect), from connection state: $connectionState")
         findReconnectWheel.stopLeScan()
+
+        if (gattConnected) {
+            Log.w(TAG, "Trying to connect while GATT client already is, ignoring")
+            return
+        } else destroyCurrentGatt()
 
         // set app state
         appStateStore.setState(ConnectedState(inputDeviceToConnect.device.address))
@@ -119,15 +126,14 @@ class WheelConnection @Inject constructor(
 
     fun connectAlreadyConnectedDevice(device: BluetoothDevice) {
         connectionState = BleConnectionState.SYSTEM_ALREADY_CONNECTED
-        doConnect(device)
+        reconnectDeviceAddr(device.address)
     }
 
     fun disconnectDevice() {
         appLog.log("User action → Disconnect device")
         appStateStore.setState(OnStateDefault)
 
-        if (connectionState == BleConnectionState.DISCONNECTED_RECONNECTING)
-            connectionState = BleConnectionState.DISCONNECTED
+        if (connectionState.canDisconnect) connectionState = BleConnectionState.DISCONNECTED
 
         if (btStateChangeReceiver.registered) {
             btStateChangeReceiver.registered = false
@@ -138,7 +144,7 @@ class WheelConnection @Inject constructor(
 
         shouldStayConnected = false
         powerManagement.removeLock(TAG)
-        notificationChar?.apply { gatt?.let { setNotification(it, false) } }
+        disableGattNotifications()
         _gatt?.disconnect()
     }
 
@@ -187,21 +193,26 @@ class WheelConnection @Inject constructor(
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             when (newState) {
                 BluetoothGatt.STATE_CONNECTING -> {
+                    gattConnected = true
                     connectionState = BleConnectionState.CONNECTING
                     logConnectionStateChange("STATE_CONNECTING", status)
                 }
 
                 BluetoothGatt.STATE_DISCONNECTING -> {
+                    gattConnected = false
                     connectionState = BleConnectionState.DISCONNECTING
                     logConnectionStateChange("STATE_DISCONNECTING", status)
                 }
 
                 BluetoothGatt.STATE_CONNECTED -> {
+                    gattConnected = true
                     connectionState = BleConnectionState.CONNECTED
+                    findReconnectWheel.stopLeScan()
                     logConnectionStateChange("STATE_CONNECTED", status)
                     gatt.discoverServices()
                 }
                 BluetoothGatt.STATE_DISCONNECTED -> {
+                    gattConnected = false
                     logConnectionStateChange("STATE_DISCONNECTED", status)
                     // source: https://cs.android.com/android/platform/superproject/+/master:system/bt/stack/include/gatt_api.h;l=65?q=gatt_api.h
                     gotDisconnected(gatt = gatt, failed = status in 0x80..0x89)
@@ -210,7 +221,7 @@ class WheelConnection @Inject constructor(
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            Log.i("GATT", "Services discovered: ${gatt.services.map { it.uuid }}")
+            Log.i(TAG, "Services discovered: ${gatt.services.map { it.uuid }}")
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
             setupGotwayType()
@@ -241,25 +252,34 @@ class WheelConnection @Inject constructor(
         veteranWheel = null
         wheelData.clear()
 
+        // disable notifications
+        disableGattNotifications()
+
         if (shouldStayConnected) {
             connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
             gatt?.let {
                 if (failed) {
-                    Log.i(TAG, "Connection failed, disconnect then try reconnecting with scanning")
-                    it.disconnect()
-                    it.close()
-                    reconnectDeviceAddr(it.device.address)
+                    appLog.log("Connection failed, try reconnecting only via scanning")
                 } else {
-                    Log.i(TAG, "Attempt to reconnect directly")
+                    appLog.log("Attempt to reconnect directly and via scanning")
                     it.connect()
                 }
+
+                reconnectDeviceAddr(it.device.address)
             }
         } else {
             connectionState = BleConnectionState.DISCONNECTED
-            _gatt = null
+            destroyCurrentGatt()
             notificationChar = null
             wheelData.clear()
         }
+    }
+
+    private fun destroyCurrentGatt() = _gatt?.let {
+        Log.d(TAG, "Destroy current GATT client")
+        it.disconnect()
+        it.close()
+        _gatt = null
     }
 
     private val btStateChangeReceiver = object : BroadcastReceiver() {
@@ -292,6 +312,9 @@ class WheelConnection @Inject constructor(
             }
         }
     }
+
+    private fun disableGattNotifications() =
+        notificationChar?.apply { gatt?.let { setNotification(it, false) } }
 
     private fun BluetoothGattCharacteristic.setNotification(gatt: BluetoothGatt, status: Boolean) {
         gatt.setCharacteristicNotification(this, status)

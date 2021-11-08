@@ -10,9 +10,9 @@ object DataParsing {
         .toByteArray()
 
     // cap the size of the ring buffer to its maximum
-    fun <E> ArrayDeque<E>.capSize(maxRingBufferSize: Int, incomingData: ByteArray) {
+    fun <E> ArrayDeque<E>.capSize(incomingData: ByteArray, maxRingBufferSize: Int) {
         val toRemove = size + incomingData.size - maxRingBufferSize
-        if (toRemove > 0) (0 until toRemove).forEach { _ -> remove() }
+        if (toRemove > 0) (0 until toRemove.coerceAtMost(size)).forEach { _ -> remove() }
     }
 
     // test if a ByteArray starts of ends with the content of another ByteArray

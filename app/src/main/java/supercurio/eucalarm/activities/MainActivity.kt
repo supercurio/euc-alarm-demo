@@ -256,6 +256,7 @@ class MainActivity : ComponentActivity() {
                     BleConnectionState.DISCONNECTED_RECONNECTING -> "reconnecting"
                     BleConnectionState.CONNECTING -> "connecting"
                     BleConnectionState.CONNECTED -> "connected"
+                    BleConnectionState.SCANNING -> "scanning"
                     else -> ""
                 }
 

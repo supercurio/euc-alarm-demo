@@ -18,7 +18,7 @@ enum class BleConnectionState(val canDisconnect: Boolean) {
     ),
 
     SCANNING(
-        canDisconnect = false
+        canDisconnect = true
     ),
 
     SYSTEM_ALREADY_CONNECTED(

@@ -72,9 +72,11 @@ class AlertFeedback @Inject constructor(
             wheelConnection.connectionStateFlow.collect { state ->
                 // Handle connection loss
                 val connectionLoss = when (state) {
-                    BleConnectionState.DISCONNECTED_RECONNECTING -> true
+                    BleConnectionState.DISCONNECTED_RECONNECTING,
+                    BleConnectionState.SCANNING -> true
                     BleConnectionState.CONNECTING ->
-                        previousState == BleConnectionState.DISCONNECTED_RECONNECTING
+                        previousState == BleConnectionState.DISCONNECTED_RECONNECTING ||
+                                previousState == BleConnectionState.SCANNING
                     else -> false
                 }
                 previousState = state
@@ -87,17 +89,18 @@ class AlertFeedback @Inject constructor(
                     BleConnectionState.CONNECTED,
                     BleConnectionState.RECEIVING_DATA,
                     BleConnectionState.REPLAY,
-                    BleConnectionState.DISCONNECTED_RECONNECTING -> runTracks()
+                    BleConnectionState.DISCONNECTED_RECONNECTING,
+                    BleConnectionState.SCANNING,
+                    -> runTracks()
 
                     BleConnectionState.UNSET,
                     BleConnectionState.DISCONNECTING,
-                    BleConnectionState.DISCONNECTED -> stopTracks()
+                    BleConnectionState.DISCONNECTED,
+                    -> stopTracks()
 
                     BleConnectionState.SYSTEM_ALREADY_CONNECTED,
                     BleConnectionState.BLUETOOTH_OFF,
-                    BleConnectionState.SCANNING -> {
-                        // No change
-                    }
+                    -> {; } // No change
                 }
             }
         }
