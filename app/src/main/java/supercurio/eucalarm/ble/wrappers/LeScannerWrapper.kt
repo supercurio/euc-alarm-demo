@@ -1,10 +1,7 @@
 package supercurio.eucalarm.ble.wrappers
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
+import android.bluetooth.le.*
 import android.util.Log
 import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
 import kotlin.coroutines.Continuation
@@ -36,18 +33,23 @@ class LeScannerWrapper {
             }
         }
 
-        scanner.startScan(scanFilters, scanSettings, callback)
+        scanner?.apply {
+            startScan(scanFilters, scanSettings, callback)
+        } ?: run {
+            cont.resume(ScannerWrapperResult.Failure)
+        }
     }
 
 
     fun stop() {
         Log.i(TAG, "stop")
-        callback?.let { scanner.stopScan(it) }
+        callback?.let { scanner?.stopScan(it) }
         continuation?.resume(ScannerWrapperResult.Success)
         continuation = null
     }
 
-    private val scanner get() = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
+    private val scanner: BluetoothLeScanner?
+        get() = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
 
     companion object {
         private const val TAG = "LeScannerWrapper"
