@@ -278,7 +278,6 @@ class WheelConnection @Inject constructor(
             connectionState = BleConnectionState.DISCONNECTED
             destroyCurrentGatt()
             notificationChar = null
-            wheelData.clear()
         }
     }
 
