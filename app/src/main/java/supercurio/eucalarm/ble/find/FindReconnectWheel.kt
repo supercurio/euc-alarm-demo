@@ -14,9 +14,6 @@ import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 
 class FindReconnectWheel(private val wheelConnection: WheelConnection) {
 
-    // TODO: throttle the ble scanner to avoid being silently throttled by the OS and stuck with
-    //       a scanner that will never get any result
-
     private var scope: CoroutineScope? = null
     private var scannerWrapper = LeScannerWrapper()
     private var isScanning = false
