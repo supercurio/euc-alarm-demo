@@ -14,7 +14,7 @@ class WheelDataPrimitives(
     override var tilt: Double? = null
     override var beeper = false
 
-    override fun gotNewData(end: Boolean) {
+    override fun gotNewData() {
         newDataCallback?.invoke(this)
     }
 }

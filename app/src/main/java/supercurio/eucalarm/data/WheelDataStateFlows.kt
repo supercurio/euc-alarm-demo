@@ -74,6 +74,6 @@ class WheelDataStateFlows @Inject constructor() : WheelDataInterface {
             beeperFlow.value = value
         }
 
-    override fun gotNewData(end: Boolean) = Unit
+    override fun gotNewData() = Unit
 
 }

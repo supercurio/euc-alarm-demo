@@ -7,7 +7,7 @@ import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
-import supercurio.eucalarm.oems.GotwayWheel
+import supercurio.eucalarm.oems.GotwayAndVeteranParser
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 
@@ -52,7 +52,7 @@ class FindConnectedWheels(
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i(TAG, "onServicesDiscovered: ${gatt.device.address} (${gatt.device.name})")
             gatt.services.firstOrNull {
-                it.uuid.toString() == GotwayWheel.SERVICE_UUID
+                it.uuid.toString() == GotwayAndVeteranParser.SERVICE_UUID
             }?.let {
                 foundWheelCallback(
                     DeviceFound(

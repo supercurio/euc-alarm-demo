@@ -3,8 +3,7 @@ package supercurio.wheeldata.cli
 
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.data.WheelDataPrimitives
-import supercurio.eucalarm.oems.GotwayWheel
-import supercurio.eucalarm.oems.VeteranWheel
+import supercurio.eucalarm.oems.GotwayAndVeteranParser
 import supercurio.eucalarm.utils.TimeUtils.toMs
 import supercurio.wheeldata.recording.RecordingMessageType
 import java.io.File
@@ -50,8 +49,7 @@ fun main() {
 
     val wheelData = WheelDataPrimitives(newDataCallback)
 
-    val gotwayWheel = GotwayWheel(wheelData)
-    val veteranWheel = VeteranWheel(wheelData)
+    val gotwayAndVeteranParser = GotwayAndVeteranParser(wheelData)
 
     var startMs = System.currentTimeMillis()
     while (input.available() > 0) {
@@ -66,12 +64,11 @@ fun main() {
 
                 val bytes = notification.bytes.toByteArray()
                 wheelData.dataTimeMs = startMs + notification.elapsedTimestamp.toMs()
-                gotwayWheel.findFrame(bytes)
-                veteranWheel.findFrame(bytes)
+                gotwayAndVeteranParser.notificationData(bytes)
             }
         }
     }
-    wheelData.gotNewData(end = true)
+    wheelData.gotNewData()
 
     output.flush()
     output.close()

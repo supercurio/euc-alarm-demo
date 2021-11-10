@@ -3,8 +3,7 @@ package supercurio.eucalarm.ble
 import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.data.WheelDataStateFlows
-import supercurio.eucalarm.oems.GotwayWheel
-import supercurio.eucalarm.oems.VeteranWheel
+import supercurio.eucalarm.oems.GotwayAndVeteranParser
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
@@ -20,8 +19,7 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
         wheelConnection.setReplayState(true)
         input = recording
         characteristicsKeys = CharacteristicsKeys()
-        val gotwayWheel = GotwayWheel(wheelDataStateFlows)
-        val veteranWheel = VeteranWheel(wheelDataStateFlows)
+        val gotwayAndVeteranParser = GotwayAndVeteranParser(wheelDataStateFlows)
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         playing = true
@@ -40,8 +38,7 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
                     TimeUtils.delayFromNotification(nanoStart, notification)
 
                     val bytes = notification.bytes.toByteArray()
-                    gotwayWheel.findFrame(bytes)
-                    veteranWheel.findFrame(bytes)
+                    gotwayAndVeteranParser.notificationData(bytes)
                 }
             }
         }

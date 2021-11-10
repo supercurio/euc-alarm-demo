@@ -15,7 +15,7 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
-import supercurio.eucalarm.oems.GotwayWheel
+import supercurio.eucalarm.oems.GotwayAndVeteranParser
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
@@ -149,7 +149,7 @@ class WheelBleSimulator @Inject constructor(
             .build()
         val advertiseData = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
-            .addServiceUuid(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID))
+            .addServiceUuid(ParcelUuid.fromString(GotwayAndVeteranParser.SERVICE_UUID))
             .apply {
                 advertisement?.let { advertisement ->
                     advertisement.manufacturerDataMap.forEach { (id, bytes) ->
@@ -185,7 +185,7 @@ class WheelBleSimulator @Inject constructor(
 
         val characteristic = server.services.mapNotNull { service ->
             service.characteristics.find { char ->
-                char.uuid.toString() == GotwayWheel.DATA_CHARACTERISTIC_UUID
+                char.uuid.toString() == GotwayAndVeteranParser.DATA_CHARACTERISTIC_UUID
             }
         }.first()
 

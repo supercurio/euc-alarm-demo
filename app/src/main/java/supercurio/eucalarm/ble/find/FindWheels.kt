@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
 import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
-import supercurio.eucalarm.oems.GotwayWheel
+import supercurio.eucalarm.oems.GotwayAndVeteranParser
 import supercurio.eucalarm.utils.btManager
 
 class FindWheels(private val context: Context) {
@@ -80,7 +80,7 @@ class FindWheels(private val context: Context) {
         Log.i(TAG, "Start scan, offloadedFilteringSupported: $offloadedFilteringSupported")
 
         val scanFilter = if (offloadedFilteringSupported) ScanFilter.Builder()
-            .setServiceUuid(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID))
+            .setServiceUuid(ParcelUuid.fromString(GotwayAndVeteranParser.SERVICE_UUID))
             .build()
         else
             ScanFilter.Builder().build()
@@ -96,7 +96,7 @@ class FindWheels(private val context: Context) {
             if (!offloadedFilteringSupported) {
                 if (result.scanRecord
                         ?.serviceUuids
-                        ?.contains(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID)) != true
+                        ?.contains(ParcelUuid.fromString(GotwayAndVeteranParser.SERVICE_UUID)) != true
                 ) return
             }
 

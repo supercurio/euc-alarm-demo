@@ -19,8 +19,7 @@ import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.ble.find.FindReconnectWheel
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.log.AppLog
-import supercurio.eucalarm.oems.GotwayWheel
-import supercurio.eucalarm.oems.VeteranWheel
+import supercurio.eucalarm.oems.GotwayAndVeteranParser
 import supercurio.eucalarm.power.PowerManagement
 import java.util.*
 import javax.inject.Inject
@@ -53,8 +52,7 @@ class WheelConnection @Inject constructor(
 
     private var _gatt: BluetoothGatt? = null
     private var notificationChar: BluetoothGattCharacteristic? = null
-    private var gotwayWheel: GotwayWheel? = null
-    private var veteranWheel: VeteranWheel? = null
+    private var gotwayAndVeteranParser: GotwayAndVeteranParser? = null
     private var deviceFound: DeviceFound? = null
 
     val gatt get() = _gatt
@@ -159,14 +157,14 @@ class WheelConnection @Inject constructor(
         disconnectDevice()
     }
 
-    fun setupGotwayType() {
-        Log.i(TAG, "Setup connection")
+    fun enableGotwayAndVeteranNotification() {
+        Log.i(TAG, "Enable Gotway/Veteran notification")
         _gatt?.let { gatt ->
-            val service = gatt.getService(UUID.fromString(GotwayWheel.SERVICE_UUID))
+            val service = gatt.getService(UUID.fromString(GotwayAndVeteranParser.SERVICE_UUID))
             notificationChar = service.getCharacteristic(
-                UUID.fromString(GotwayWheel.DATA_CHARACTERISTIC_UUID)
+                UUID.fromString(GotwayAndVeteranParser.DATA_CHARACTERISTIC_UUID)
             )?.apply {
-                Log.i(TAG, "char uuid: ${this.uuid}")
+                Log.d(TAG, "char uuid: ${this.uuid}")
                 setNotification(gatt, true)
             }
         }
@@ -222,7 +220,7 @@ class WheelConnection @Inject constructor(
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i(TAG, "Services discovered: ${gatt.services.map { it.uuid }}")
             val notificationService = gatt.services.firstOrNull {
-                it.uuid.toString() == GotwayWheel.SERVICE_UUID
+                it.uuid.toString() == GotwayAndVeteranParser.SERVICE_UUID
             }
 
             // service discovery failed to find the one we're interested in
@@ -231,9 +229,8 @@ class WheelConnection @Inject constructor(
                 return
             }
 
-            gotwayWheel = GotwayWheel(wheelData)
-            veteranWheel = VeteranWheel(wheelData)
-            setupGotwayType()
+            gotwayAndVeteranParser = GotwayAndVeteranParser(wheelData)
+            enableGotwayAndVeteranNotification()
             connectionState = BleConnectionState.RECEIVING_DATA
             appLog.log("Successful connection to $deviceName (${gatt.device.address})")
         }
@@ -246,8 +243,7 @@ class WheelConnection @Inject constructor(
             val charUUID = characteristic.uuid.toString()
             val charValue = characteristic.value ?: return
 
-            gotwayWheel?.findFrame(charValue)
-            veteranWheel?.findFrame(charValue)
+            gotwayAndVeteranParser?.notificationData(charValue)
 
             runBlocking {
                 _notifiedCharacteristic.emit(NotifiedCharacteristic(charUUID, charValue, id))
@@ -257,8 +253,7 @@ class WheelConnection @Inject constructor(
     }
 
     private fun gotDisconnected(gatt: BluetoothGatt? = null, failed: Boolean = false) {
-        gotwayWheel = null
-        veteranWheel = null
+        gotwayAndVeteranParser = null
         wheelData.clear()
 
         // disable notifications

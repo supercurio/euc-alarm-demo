@@ -20,7 +20,7 @@ import java.util.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-class GotwayWheel(val wheelData: WheelDataInterface) {
+class GotwayParser(val wheelData: WheelDataInterface) {
 
     private val ringBuffer = ArrayDeque<Byte>(MAX_RING_BUFFER_SIZE)
     private val frame = ByteBuffer.allocate(24)
@@ -28,7 +28,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
     var packets = 0
     var lostPackets = 0
 
-    fun findFrame(input: ByteArray) {
+    fun findFrame(input: ByteArray): Boolean {
         /*
          * Packet dropped simulation
          */
@@ -36,7 +36,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
         if (SIMULATE_DROP_PACKETS && Random.nextInt(100) - SIMULATE_DROP_PACKETS_PERCENTS < 0) {
             eprintln("Simulate dropped packet")
             lostPackets++
-            return
+            return false
         }
 
         if (LOG_LOSS) println(
@@ -54,7 +54,7 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
         ringBuffer.addAll(input.asList())
 
         // return here if the buffer doesn't contain enough data for a frame
-        if (ringBuffer.size < FRAME_SIZE) return
+        if (ringBuffer.size < FRAME_SIZE) return false
 
         val frameBuffer = ringBuffer.toList()
 
@@ -74,18 +74,18 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
             val headerPos = frameBuffer.findSequence(HEADER)
             if (headerPos == -1) {
                 eprintln("Found footer but no header, likely due to packet loss")
-                return
+                return false
             }
 
             if (headerPos > footerPos) {
                 eprintln("Found header at the wrong position")
-                return
+                return false
             }
 
             val frameSizeFound = footerPos - headerPos + FOOTER.size
             if (frameSizeFound != FRAME_SIZE) {
                 eprintln("Invalid frame size found: $frameSizeFound")
-                return
+                return false
             }
 
             if (frameSizeFound == FRAME_SIZE) {
@@ -97,11 +97,13 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
                         println("Frame $frameType:\n${frame.array().showBuffer()}")
                     }
                     decodeFrame(frame)
+                    return true
                 } catch (t: Throwable) {
                     eprintln("Invalid frame: ${frameBuffer.toHexString()}")
                 }
             }
         }
+        return false
     }
 
     private fun decodeFrame(frame: ByteBuffer) {
@@ -173,10 +175,6 @@ class GotwayWheel(val wheelData: WheelDataInterface) {
     }
 
     companion object {
-
-        const val SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb"
-        const val DATA_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
-
         private const val FRAME_SIZE = 24
         private const val MAX_RING_BUFFER_SIZE = 40
         private val HEADER = declareByteArray(0x55, 0xaa).asList()

@@ -14,23 +14,23 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 
-class VeteranWheel(val wheelData: WheelDataInterface) {
+class VeteranParser(val wheelData: WheelDataInterface) {
 
     private val ringBuffer = ArrayDeque<Byte>(FRAME_SIZE)
     private val frame = ByteBuffer.allocate(FRAME_SIZE)
 
 
-    fun findFrame(data: ByteArray) {
+    fun findFrame(data: ByteArray): Boolean {
         if (DEBUG_LOGGING) println("data:\n${data.showBuffer()}")
 
         // keep only first or second packets
-        if (data.size != 20 && data.size != 16) return
+        if (data.size != 20 && data.size != 16) return false
 
         // identify first packet
-        if (data.size == 20 && !data.startsWith(FRAME_HEADER)) return
+        if (data.size == 20 && !data.startsWith(FRAME_HEADER)) return false
 
         // identify second packet
-        if (data.size == 16 && !data.endsWith(FRAME_FOOTER)) return
+        if (data.size == 16 && !data.endsWith(FRAME_FOOTER)) return false
 
         // handle the case if the 2nd packet was received first
         if (data.size == 20 && ringBuffer.size > 0)
@@ -46,7 +46,10 @@ class VeteranWheel(val wheelData: WheelDataInterface) {
             frame.put(ringBuffer.toByteArray())
             decodeFrame(frame)
             ringBuffer.clear()
+            return true
         }
+
+        return false
     }
 
     private fun decodeFrame(frame: ByteBuffer) {

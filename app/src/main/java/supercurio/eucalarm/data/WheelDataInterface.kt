@@ -48,7 +48,7 @@ interface WheelDataInterface {
     var beeper: Boolean
 
 
-    fun gotNewData(end: Boolean = false)
+    fun gotNewData()
 
     fun clear() {
         voltage = null
