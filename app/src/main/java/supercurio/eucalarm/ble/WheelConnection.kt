@@ -145,7 +145,6 @@ class WheelConnection @Inject constructor(
         powerManagement.removeLock(TAG)
         disableGattNotifications()
         _gatt?.disconnect()
-        destroyCurrentGatt()
     }
 
     fun setReplayState(state: Boolean) {
