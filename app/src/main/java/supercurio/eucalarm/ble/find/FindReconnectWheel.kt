@@ -88,11 +88,19 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
             // try first with CALLBACK_TYPE_FIRST_MATCH
 
             isScanning = true
-            when (scannerWrapper.scan(listOf(scanFilter), standardScanSettings, onResultCallback)) {
-                LeScannerWrapper.ScannerWrapperResult.Success -> Log.i(TAG, "Scanner success")
-                LeScannerWrapper.ScannerWrapperResult.Failure ->
-                    // didn't work, try with the fallback settings instead
-                    scannerWrapper.scan(listOf(scanFilter), fallbackScanSettings, onResultCallback)
+            if (scannerWrapper.scan(
+                    scanFilters = listOf(scanFilter),
+                    scanSettings = standardScanSettings, onScanResultCallback = onResultCallback
+                )
+            ) {
+                Log.i(TAG, "Scanner success")
+            } else {
+                // didn't work, try with the fallback settings instead
+                scannerWrapper.scan(
+                    scanFilters = listOf(scanFilter),
+                    scanSettings = fallbackScanSettings,
+                    onScanResultCallback = onResultCallback
+                )
             }
             isScanning = false
         }

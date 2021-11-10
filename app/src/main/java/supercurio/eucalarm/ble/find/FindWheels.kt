@@ -1,7 +1,6 @@
 package supercurio.eucalarm.ble.find
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
@@ -12,8 +11,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
+import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 import supercurio.eucalarm.oems.GotwayWheel
-import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
 
 class FindWheels(private val context: Context) {
 
@@ -26,9 +25,7 @@ class FindWheels(private val context: Context) {
         .getDefaultAdapter()
         .isOffloadedFilteringSupported
     private val devicesFound = mutableMapOf<String, DeviceFound>()
-    private val scanner get() = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
-
-    private var findLeScanCallback: ScanCallback? = null
+    private var scannerWrapper = LeScannerWrapper()
 
     private var keepFindingConnectedWheels = true
 
@@ -55,12 +52,7 @@ class FindWheels(private val context: Context) {
     fun stop() {
         keepFindingConnectedWheels = false
         findConnectedWheels?.stop()
-
-        findLeScanCallback?.let {
-            scanner.stopScan(it)
-            scanner.flushPendingScanResults(it)
-            findLeScanCallback = null
-        }
+        scannerWrapper.stop()
         devicesFound.clear()
         if (isScanning.value) updateSateFlow()
         isScanning.value = false
@@ -83,8 +75,6 @@ class FindWheels(private val context: Context) {
     private fun startLeScan() = scope?.launch {
         Log.i(TAG, "Start scan, offloadedFilteringSupported: $offloadedFilteringSupported")
 
-        val callback = getCallback().also { findLeScanCallback = it }
-
         val scanFilter = if (offloadedFilteringSupported) ScanFilter.Builder()
             .setServiceUuid(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID))
             .build()
@@ -96,21 +86,14 @@ class FindWheels(private val context: Context) {
             .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
             .build()
 
-        scanner.startScan(listOf(scanFilter), scanSettings, callback)
-
-        isScanning.value = true
-    }
-
-    private fun getCallback() = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult) {
+        val onResultCallback = fun(result: ScanResult) {
             Log.i(TAG, "LE scan result: $result")
 
             if (!offloadedFilteringSupported) {
                 if (result.scanRecord
                         ?.serviceUuids
                         ?.contains(ParcelUuid.fromString(GotwayWheel.SERVICE_UUID)) != true
-                )
-                    return
+                ) return
             }
 
             devicesFound[result.device.address] = DeviceFound(
@@ -122,10 +105,13 @@ class FindWheels(private val context: Context) {
             if (isScanning.value) updateSateFlow()
         }
 
-        override fun onScanFailed(errorCode: Int) {
-            Log.e(TAG, "Scan failed with error: ${toScanFailError(errorCode)}")
-            isScanning.value = false
-        }
+        isScanning.value = true
+        scannerWrapper.scan(
+            scanFilters = listOf(scanFilter),
+            scanSettings = scanSettings,
+            onScanResultCallback = onResultCallback
+        )
+        isScanning.value = false
     }
 
     companion object {
