@@ -1,6 +1,5 @@
 package supercurio.eucalarm.ble.find
 
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
@@ -11,21 +10,26 @@ import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
+import supercurio.eucalarm.utils.btManager
 
-class FindReconnectWheel(private val wheelConnection: WheelConnection) {
+class FindReconnectWheel(context: Context, private val wheelConnection: WheelConnection) {
 
     private var scope: CoroutineScope? = null
-    private var scannerWrapper = LeScannerWrapper()
+    private var scannerWrapper = LeScannerWrapper(
+        context = context,
+        name = "$TAG#${hashCode()}",
+        stopDelay = 0
+    )
     private var isScanning = false
     private val offloadedFilteringSupported =
-        BluetoothAdapter.getDefaultAdapter().isOffloadedFilteringSupported
+        context.btManager.adapter.isOffloadedFilteringSupported
 
     var reconnectToAddr: String? = null
 
     fun findAndReconnect(context: Context, deviceAddr: String) {
         scope = CoroutineScope(Dispatchers.Main) + CoroutineName(TAG)
         reconnectToAddr = deviceAddr
-        if (BluetoothAdapter.getDefaultAdapter().isEnabled) {
+        if (context.btManager.adapter.isEnabled) {
             FindConnectedWheels(context) { deviceFound ->
                 if (deviceFound.device.address == reconnectToAddr) {
                     stopLeScan()
@@ -49,8 +53,6 @@ class FindReconnectWheel(private val wheelConnection: WheelConnection) {
         if (isScanning) return
 
         Log.i(TAG, "Start scan for $deviceAddr")
-
-        scannerWrapper = LeScannerWrapper()
 
         val onResultCallback = fun(result: ScanResult) {
             if (!isScanning) return

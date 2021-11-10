@@ -1,6 +1,5 @@
 package supercurio.eucalarm.ble.find
 
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
@@ -13,6 +12,7 @@ import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
 import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
 import supercurio.eucalarm.oems.GotwayWheel
+import supercurio.eucalarm.utils.btManager
 
 class FindWheels(private val context: Context) {
 
@@ -21,11 +21,15 @@ class FindWheels(private val context: Context) {
     val isScanning = MutableStateFlow(false)
     val foundWheels = MutableStateFlow(listOf<DeviceFound>())
 
-    private val offloadedFilteringSupported = BluetoothAdapter
-        .getDefaultAdapter()
+    private val offloadedFilteringSupported = context.btManager
+        .adapter
         .isOffloadedFilteringSupported
     private val devicesFound = mutableMapOf<String, DeviceFound>()
-    private var scannerWrapper = LeScannerWrapper()
+    private var scannerWrapper = LeScannerWrapper(
+        context = context,
+        name = "$TAG#${hashCode()}",
+        stopDelay = 10_000 // 10 seconds
+    )
 
     private var keepFindingConnectedWheels = true
 

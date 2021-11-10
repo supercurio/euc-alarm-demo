@@ -1,6 +1,7 @@
 package supercurio.eucalarm.utils
 
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.location.LocationManager
 import android.os.Build
@@ -41,3 +42,5 @@ val Context.locationEnabled: Boolean
                     it.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)
         }
     }
+
+val Context.btManager get() = getSystemService<BluetoothManager>()!!

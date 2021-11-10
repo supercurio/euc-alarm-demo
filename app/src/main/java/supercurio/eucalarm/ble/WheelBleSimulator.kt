@@ -12,12 +12,14 @@ import android.content.IntentFilter
 import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
 import supercurio.eucalarm.oems.GotwayWheel
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
+import supercurio.eucalarm.utils.btManager
 import supercurio.eucalarm.utils.toHexString
 import supercurio.wheeldata.recording.BleAdvertisement
 import supercurio.wheeldata.recording.RecordingMessageType
@@ -27,7 +29,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class WheelBleSimulator @Inject constructor(private val powerManagement: PowerManagement) {
+class WheelBleSimulator @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val powerManagement: PowerManagement
+) {
 
     private var simulatorScope: CoroutineScope? = null
 
@@ -119,7 +124,7 @@ class WheelBleSimulator @Inject constructor(private val powerManagement: PowerMa
     }
 
     fun detectSupport(): Boolean {
-        isSupported = (BluetoothAdapter.getDefaultAdapter().bluetoothLeAdvertiser != null)
+        isSupported = (context.btManager.adapter.bluetoothLeAdvertiser != null)
         return isSupported
     }
 
@@ -158,7 +163,7 @@ class WheelBleSimulator @Inject constructor(private val powerManagement: PowerMa
                 }
             }.build()
 
-        val adapter = BluetoothAdapter.getDefaultAdapter()
+        val adapter = context.btManager.adapter
         advertiser = adapter.bluetoothLeAdvertiser?.apply {
             Log.i(
                 TAG, "Adapter isMultipleAdvertisementSupported: " +

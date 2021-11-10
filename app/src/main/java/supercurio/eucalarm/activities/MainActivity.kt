@@ -1,6 +1,7 @@
 package supercurio.eucalarm.activities
 
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -43,6 +44,7 @@ import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import supercurio.eucalarm.utils.RecordingProvider
+import supercurio.eucalarm.utils.btManager
 import supercurio.eucalarm.utils.directBootContext
 import supercurio.eucalarm.utils.locationEnabled
 import java.text.DecimalFormat
@@ -89,9 +91,13 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var findWheels: FindWheels
 
+    private lateinit var btManager: BluetoothManager
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        btManager = applicationContext.btManager
 
         appLifeCycle.on()
 
@@ -239,7 +245,7 @@ class MainActivity : ComponentActivity() {
                             !locationEnabled ->
                                 startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
 
-                            !BluetoothAdapter.getDefaultAdapter().isEnabled ->
+                            !btManager.adapter.isEnabled ->
                                 startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
 
                             else -> {

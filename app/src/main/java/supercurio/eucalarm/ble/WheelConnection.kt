@@ -35,6 +35,8 @@ class WheelConnection @Inject constructor(
     private val devicesNamesCache: DevicesNamesCache,
     private val appLog: AppLog,
 ) {
+    private val btManager = context.getSystemService<BluetoothManager>()!!
+
     var connectionState = BleConnectionState.UNSET
         private set(value) {
             Log.i(TAG, "ConnectionState change: $value")
@@ -45,7 +47,7 @@ class WheelConnection @Inject constructor(
 
     private var gattConnected = false
 
-    private val findReconnectWheel = FindReconnectWheel(this)
+    private val findReconnectWheel = FindReconnectWheel(context, this)
 
     private var shouldStayConnected = false
 
@@ -96,9 +98,7 @@ class WheelConnection @Inject constructor(
         // TODO: check if really necessary
         // get a fresh BluetoothDevice form the adapter
         val deviceToConnect = DeviceFound(
-            device = BluetoothAdapter
-                .getDefaultAdapter()
-                .getRemoteDevice(inputDeviceToConnect.device.address),
+            device = btManager.adapter.getRemoteDevice(inputDeviceToConnect.device.address),
             scanRecord = inputDeviceToConnect.scanRecord
         )
 
@@ -108,7 +108,6 @@ class WheelConnection @Inject constructor(
 
         registerBtStateChangeReceiver()
 
-        val btManager = context.getSystemService<BluetoothManager>()!!
 
         when (btManager.getConnectionState(deviceToConnect.device, BluetoothProfile.GATT)) {
             // already connected: connect if the connection is not already ready and we're not
@@ -146,6 +145,7 @@ class WheelConnection @Inject constructor(
         powerManagement.removeLock(TAG)
         disableGattNotifications()
         _gatt?.disconnect()
+        destroyCurrentGatt()
     }
 
     fun setReplayState(state: Boolean) {
@@ -222,6 +222,16 @@ class WheelConnection @Inject constructor(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.i(TAG, "Services discovered: ${gatt.services.map { it.uuid }}")
+            val notificationService = gatt.services.firstOrNull {
+                it.uuid.toString() == GotwayWheel.SERVICE_UUID
+            }
+
+            // service discovery failed to find the one we're interested in
+            if (notificationService == null) {
+                destroyCurrentGatt()
+                return
+            }
+
             gotwayWheel = GotwayWheel(wheelData)
             veteranWheel = VeteranWheel(wheelData)
             setupGotwayType()
@@ -258,14 +268,12 @@ class WheelConnection @Inject constructor(
         if (shouldStayConnected) {
             connectionState = BleConnectionState.DISCONNECTED_RECONNECTING
             gatt?.let {
-                if (failed) {
-                    appLog.log("Connection failed, try reconnecting only via scanning")
-                } else {
-                    appLog.log("Attempt to reconnect directly and via scanning")
-                    it.connect()
-                }
+                if (failed) appLog.log("Connection attempt failed")
 
-                reconnectDeviceAddr(it.device.address)
+                appLog.log("Attempt to reconnect")
+                val address = it.device.address
+                destroyCurrentGatt()
+                doConnect(btManager.adapter.getRemoteDevice(address))
             }
         } else {
             connectionState = BleConnectionState.DISCONNECTED
@@ -277,6 +285,7 @@ class WheelConnection @Inject constructor(
 
     private fun destroyCurrentGatt() = _gatt?.let {
         Log.d(TAG, "Destroy current GATT client")
+        gattConnected = false
         it.disconnect()
         it.close()
         _gatt = null

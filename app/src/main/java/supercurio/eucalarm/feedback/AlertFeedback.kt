@@ -34,12 +34,6 @@ class AlertFeedback @Inject constructor(
     private val scopes: CoroutineScopeProvider,
     private val appLog: AppLog,
 ) {
-
-    /*
-     * TODO:
-     *  - Audio alert on disconnection
-     */
-
     private var audioManager: AudioManager? = null
     private var vibrator: Vibrator? = null
     private var alertTrack: AudioTrack? = null

@@ -1,15 +1,21 @@
 package supercurio.eucalarm.ble.wrappers
 
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.*
+import android.content.Context
+import android.text.format.DateUtils
 import android.util.Log
 import kotlinx.coroutines.*
 import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
+import supercurio.eucalarm.utils.btManager
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class LeScannerWrapper {
+class LeScannerWrapper(
+    private val context: Context,
+    private val name: String,
+    private val stopDelay: Long
+) {
 
     private var delayedStopScope: CoroutineScope? = null
     private var callback: ScanCallback? = null
@@ -28,29 +34,36 @@ class LeScannerWrapper {
         continuation = cont
 
         muted = false
-        // in case we already had a scanner running with the same parameters
+        // in case we already have a scanner still running with the same parameters
         if (scanFilters.sameAs(currentScanFilters) && scanSettings.sameAs(currentScanSettings) &&
             delayedStopScope != null
         ) {
-            Log.d(TAG, "Keep the same scanner running")
+            log("Keep the same scanner running")
             deleteDelayedStopScope()
             return@suspendCoroutine
         }
 
-        Log.d(TAG, "Create a new scanner")
+        log("Create a new scanner")
 
         currentScanFilters = scanFilters
         currentScanSettings = scanSettings
 
         callback = object : ScanCallback() {
             override fun onScanFailed(errorCode: Int) {
-                Log.e(TAG, "Scan failed with error: ${toScanFailError(errorCode)}")
+                Log.e(
+                    TAG,
+                    "$name wrapper#${hashCode()} Scan failed with error: " +
+                            toScanFailError(errorCode)
+                )
                 cont.resume(false)
             }
 
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
-                if (!muted) onScanResultCallback(result)
+                if (muted)
+                    log("Ignored scan result for ${result.device.address}")
+                else
+                    onScanResultCallback(result)
             }
         }
 
@@ -62,28 +75,35 @@ class LeScannerWrapper {
     }
 
     fun stop() {
-        Log.i(TAG, "stop")
+        log("stop")
 
-        delayedStopScope?.cancel()
-        delayedStopScope = (CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)).apply {
-            launch {
-                Log.i(TAG, "Keep the scan running muted")
-                muted = true
-                delay(DELAY_BEFORE_STOPPING_SCAN)
-                Log.i(TAG, "Actually stop the scan now")
-                callback?.let {
-                    scanner?.stopScan(it)
-                    scanner?.flushPendingScanResults(it)
-                    callback = null
+        if (stopDelay == 0L) {
+            stopScanNow()
+        } else {
+            delayedStopScope?.cancel()
+            delayedStopScope = (CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)).apply {
+                launch {
+                    log("Keep the scan running muted")
+                    muted = true
+                    delay(stopDelay)
+                    log("Actually stop the scan now")
+
+                    stopScanNow()
+                    deleteDelayedStopScope()
                 }
-
-                deleteDelayedStopScope()
             }
         }
 
-
         continuation?.resume(true)
         continuation = null
+    }
+
+    private fun stopScanNow() {
+        callback?.let {
+            scanner?.stopScan(it)
+            scanner?.flushPendingScanResults(it)
+            callback = null
+        }
     }
 
     private fun deleteDelayedStopScope() {
@@ -91,12 +111,20 @@ class LeScannerWrapper {
         delayedStopScope = null
     }
 
+    private fun log(string: String) {
+        Log.d(TAG, "$name wrapper#${hashCode()}: $string")
+    }
+
     private val scanner: BluetoothLeScanner?
-        get() = BluetoothAdapter.getDefaultAdapter().bluetoothLeScanner
+        get() = context.btManager.adapter.bluetoothLeScanner
 
     companion object {
         private const val TAG = "LeScannerWrapper"
-        private const val DELAY_BEFORE_STOPPING_SCAN = 10000L
+
+        // TODO: Maybe implement some throttling mechanism using these values
+        // source: https://cs.android.com/android/platform/superproject/+/master:packages/apps/Bluetooth/src/com/android/bluetooth/btservice/AdapterService.java
+        private const val DEFAULT_SCAN_QUOTA_COUNT = 5
+        private const val DEFAULT_SCAN_QUOTA_WINDOW_MILLIS = 30 * DateUtils.SECOND_IN_MILLIS
     }
 }
 
