@@ -62,7 +62,6 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     // TODO:
     //  Make a better presentation to highlight Speed, Voltage, Motor current and main actions
-    //  Give a voltage setting picker for Gotway/Begode wheels (67.2, 84.0, 100.8)
     //  Show event log in UI, allow to share it or clear it
 
     private val activityScope = MainScope() + CoroutineName(TAG)
