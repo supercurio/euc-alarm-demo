@@ -9,6 +9,7 @@ import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.parsers.GotwayConfig
 import supercurio.eucalarm.parsers.GotwayParser
+import supercurio.eucalarm.utils.directBootContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,7 +19,8 @@ class WheelsConfig @Inject constructor(
     private val wheelConnection: WheelConnection,
     private val scopes: CoroutineScopeProvider,
 ) {
-    private val prefs = context.getSharedPreferences("wheels_config", Context.MODE_PRIVATE)
+    private val prefs = context.directBootContext
+        .getSharedPreferences("wheels_config", Context.MODE_PRIVATE)
 
     fun start() = scopes.app.launch {
         wheelConnection.parserConfigFlow.collect { config ->

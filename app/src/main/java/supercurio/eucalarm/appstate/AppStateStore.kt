@@ -24,17 +24,19 @@ class AppStateStore @Inject constructor(
         private set
 
     fun setState(value: AppState) {
+        val prevState = appState
         appState = value
 
-        prefs.edit(commit = true) {
-            clear()
-            when (value) {
-                is OffState -> putString(OFF_SATE, "")
-                is OnStateDefault -> putString(ON_SATE_DEFAULT, "")
-                is ConnectedState -> putString(CONNECTED_STATE, value.deviceAddr)
-                is RecordingState -> putString(RECORDING_STATE, value.deviceAddr)
+        if (value != prevState)
+            prefs.edit(commit = true) {
+                clear()
+                when (value) {
+                    is OffState -> putString(OFF_SATE, "")
+                    is OnStateDefault -> putString(ON_SATE_DEFAULT, "")
+                    is ConnectedState -> putString(CONNECTED_STATE, value.deviceAddr)
+                    is RecordingState -> putString(RECORDING_STATE, value.deviceAddr)
+                }
             }
-        }
         Log.i(TAG, "State set to $value")
     }
 

@@ -37,7 +37,9 @@ import com.google.accompanist.permissions.rememberPermissionState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import supercurio.eucalarm.BuildConfig
+import supercurio.eucalarm.appstate.AppState
 import supercurio.eucalarm.appstate.AppStateStore
+import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.ble.find.FindWheels
 import supercurio.eucalarm.data.WheelDataStateFlows
@@ -101,6 +103,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appStateStore.setState(OnStateDefault)
 
         btManager = applicationContext.btManager
 
