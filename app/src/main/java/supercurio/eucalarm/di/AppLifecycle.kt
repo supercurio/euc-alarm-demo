@@ -1,9 +1,9 @@
 package supercurio.eucalarm.di
 
 import android.content.Context
-import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.Notifications
+import supercurio.eucalarm.WheelsConfig
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.OffState
 import supercurio.eucalarm.ble.WheelBleRecorder
@@ -30,6 +30,7 @@ class AppLifecycle @Inject constructor(
     private val simulator: WheelBleSimulator,
     private val notifications: Notifications,
     private val appLog: AppLog,
+    private val wheelsConfig: WheelsConfig,
 ) {
 
     private var state = false
@@ -38,11 +39,13 @@ class AppLifecycle @Inject constructor(
         if (state) return
         state = true
 
-        Log.i(TAG, "ON")
+        appLog.log("$TAG: ON")
 
         wheelData.clear()
         notifications.muted = false
         alert.setup()
+
+        wheelsConfig.start()
 
         AppService.enable(context, true)
     }
@@ -51,7 +54,7 @@ class AppLifecycle @Inject constructor(
         if (!state) return
         state = false
 
-        Log.i(TAG, "OFF")
+        appLog.log("$TAG: OFF")
 
         notifications.muted = true
 

@@ -1,9 +1,10 @@
 package supercurio.eucalarm.ble
 
 import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.data.WheelDataStateFlows
-import supercurio.eucalarm.oems.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.GotwayAndVeteranParser
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils
 import supercurio.wheeldata.recording.RecordingMessageType
@@ -19,7 +20,7 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
         wheelConnection.setReplayState(true)
         input = recording
         characteristicsKeys = CharacteristicsKeys()
-        val gotwayAndVeteranParser = GotwayAndVeteranParser(wheelDataStateFlows)
+        var gotwayAndVeteranParser: GotwayAndVeteranParser? = null
         val nanoStart = SystemClock.elapsedRealtimeNanos()
 
         playing = true
@@ -29,8 +30,14 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
             val message = RecordingMessageType.parseDelimitedFrom(recording.inputStream)
 
             when {
-                message.hasBleDeviceInfo() ->
+                message.hasBleDeviceInfo() -> {
                     characteristicsKeys?.fromDeviceInfo(message.bleDeviceInfo)
+                    gotwayAndVeteranParser = GotwayAndVeteranParser(
+                        wheelDataStateFlows,
+                        wheelConnection.parserConfigFlow,
+                        message.bleDeviceInfo.address
+                    )
+                }
 
                 message.hasGattNotification() -> {
                     val notification = message.gattNotification
@@ -38,12 +45,15 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
                     TimeUtils.delayFromNotification(nanoStart, notification)
 
                     val bytes = notification.bytes.toByteArray()
-                    gotwayAndVeteranParser.notificationData(bytes)
+                    gotwayAndVeteranParser?.notificationData(bytes)
                 }
             }
         }
 
+        Log.i(TAG, "Finished")
+
         wheelDataStateFlows.clear()
+        gotwayAndVeteranParser?.stop()
         playing = false
         playingState.value = false
         wheelConnection.setReplayState(false)
@@ -53,5 +63,9 @@ class WheelBlePlayer(private val wheelConnection: WheelConnection) {
         playing = false
         playingState.value = false
         input?.close()
+    }
+
+    companion object {
+        private const val TAG = "WheelBlePlayer"
     }
 }

@@ -7,7 +7,7 @@ import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
-import supercurio.eucalarm.oems.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.GotwayAndVeteranParser
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 

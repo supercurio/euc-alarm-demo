@@ -23,6 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +36,7 @@ import com.google.accompanist.permissions.PermissionRequired
 import com.google.accompanist.permissions.rememberPermissionState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
+import supercurio.eucalarm.BuildConfig
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.ble.*
 import supercurio.eucalarm.ble.find.FindWheels
@@ -40,6 +44,7 @@ import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.log.AppLog
+import supercurio.eucalarm.parsers.GotwayConfig
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
@@ -189,6 +194,11 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     private fun MyLayout() {
+        Text(
+            "version: ${BuildConfig.VERSION_NAME}",
+            textAlign = TextAlign.Right,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Column(modifier = Modifier.padding(16.dp)) {
 
@@ -306,25 +316,37 @@ class MainActivity : ComponentActivity() {
                 Button(onClick = { stopRecording() }) { Text("Stop recording") }
 
 
+            wheelConnection.parserConfigFlow.collectAsState().value.let { config ->
+                if (config is GotwayConfig) {
+                    Row {
+                        Text("Voltage category: ")
+                        RadioButtons(67.2f, config)
+                        RadioButtons(84f, config)
+                        RadioButtons(100.8f, config)
+                    }
+                }
+            }
+
             val df = DecimalFormat("#.###")
-            wheelData.voltageFlow.collectAsState().value?.let {
-                Text("Voltage: ${df.format(it)} V ", fontSize = 30.sp)
-            }
             wheelData.speedFlow.collectAsState().value?.let {
-                Text("Speed: ${df.format(it)} km/h ", fontSize = 30.sp)
-            }
-            wheelData.tripDistanceFlow.collectAsState().value?.let {
-                Text("Trip Distance: $it km ", fontSize = 30.sp)
-            }
-            wheelData.totalDistanceFlow.collectAsState().value?.let {
-                Text("Total Distance: $it km ", fontSize = 30.sp)
+                BigTextData("Speed", "%2.1f", "km/h", it)
             }
             wheelData.currentFlow.collectAsState().value?.let {
-                Text("Current: $it A ", fontSize = 30.sp)
+                BigTextData("Current", "%.2f", "A", it)
+            }
+            wheelData.voltageFlow.collectAsState().value?.let {
+                BigTextData("Voltage", "%.2f", "V", it)
             }
             wheelData.temperatureFlow.collectAsState().value?.let {
-                Text("Temperature: ${df.format(it)} °C ", fontSize = 30.sp)
+                BigTextData("Temperature", "%.2f", "°C", it)
             }
+            wheelData.tripDistanceFlow.collectAsState().value?.let {
+                SmallTextData(title = "Trip Distance", format = "%.3f", unit = "km", value = it)
+            }
+            wheelData.totalDistanceFlow.collectAsState().value?.let {
+                SmallTextData(title = "Total Distance", format = "%.3f", unit = "km", value = it)
+            }
+
             val beeper = wheelData.beeperFlow.collectAsState().value
             Column(
                 verticalArrangement = Arrangement.Center,
@@ -340,6 +362,50 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    @Composable
+    private fun BigTextData(title: String, format: String, unit: String, value: Double) {
+        Row {
+            Text(title)
+            Text(
+                String.format(format, value) + " $unit".padEnd(4),
+                fontSize = 40.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Right,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp)
+            )
+        }
+    }
+
+    @Composable
+    private fun SmallTextData(title: String, format: String, unit: String, value: Double) {
+        Row {
+            Text(title)
+            Text(
+                String.format(format, value) + " $unit".padEnd(2),
+                fontSize = 20.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Right,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    @Composable
+    private fun RadioButtons(voltage: Float, gotwayConfig: GotwayConfig) {
+        Text("${voltage}V")
+        RadioButton(selected = gotwayConfig.voltage == voltage,
+                    onClick = {
+                        wheelConnection.parserConfigFlow.value = GotwayConfig(
+                            address = gotwayConfig.address,
+                            voltage = voltage
+                        )
+                    })
     }
 
     @Preview(name = "Light Mode")
@@ -411,6 +477,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun manualStop() {
+        player.stop()
         appLifeCycle.off()
         finish()
     }

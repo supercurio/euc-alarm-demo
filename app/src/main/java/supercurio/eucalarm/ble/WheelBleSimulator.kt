@@ -15,7 +15,7 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
-import supercurio.eucalarm.oems.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.GotwayAndVeteranParser
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.TimeUtils

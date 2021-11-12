@@ -1,9 +1,12 @@
 package supercurio.wheeldata.cli
 
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.data.WheelDataPrimitives
-import supercurio.eucalarm.oems.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.NoConfig
+import supercurio.eucalarm.parsers.ParserConfig
 import supercurio.eucalarm.utils.TimeUtils.toMs
 import supercurio.wheeldata.recording.RecordingMessageType
 import java.io.File
@@ -48,27 +51,34 @@ fun main() {
 
 
     val wheelData = WheelDataPrimitives(newDataCallback)
+    val parserConfigFlow = MutableStateFlow<ParserConfig>(NoConfig)
 
-    val gotwayAndVeteranParser = GotwayAndVeteranParser(wheelData)
+    var gotwayAndVeteranParser: GotwayAndVeteranParser? = null
 
     var startMs = System.currentTimeMillis()
     while (input.available() > 0) {
         val message = RecordingMessageType.parseDelimitedFrom(input)
 
         when {
-            message.hasRecordingInfo() -> {
-                startMs = message.recordingInfo.startTimestamp.toMs()
-            }
+            message.hasRecordingInfo() -> startMs = message.recordingInfo.startTimestamp.toMs()
+
+            message.hasBleDeviceInfo() -> gotwayAndVeteranParser = GotwayAndVeteranParser(
+                wheelData,
+                parserConfigFlow,
+                message.bleDeviceInfo.address
+            )
+
             message.hasGattNotification() -> {
                 val notification = message.gattNotification
 
                 val bytes = notification.bytes.toByteArray()
                 wheelData.dataTimeMs = startMs + notification.elapsedTimestamp.toMs()
-                gotwayAndVeteranParser.notificationData(bytes)
+                gotwayAndVeteranParser?.notificationData(bytes)
             }
         }
     }
     wheelData.gotNewData()
+    gotwayAndVeteranParser?.stop()
 
     output.flush()
     output.close()

@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import supercurio.eucalarm.ble.DeviceFound
 import supercurio.eucalarm.ble.DeviceFoundFrom
 import supercurio.eucalarm.ble.wrappers.LeScannerWrapper
-import supercurio.eucalarm.oems.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.GotwayAndVeteranParser
 import supercurio.eucalarm.utils.btManager
 
 class FindWheels(private val context: Context) {

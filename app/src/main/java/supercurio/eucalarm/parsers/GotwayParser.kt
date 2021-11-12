@@ -1,4 +1,4 @@
-package supercurio.eucalarm.oems
+package supercurio.eucalarm.parsers
 
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.DataParsing.byte
@@ -20,13 +20,14 @@ import java.util.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-class GotwayParser(val wheelData: WheelDataInterface) {
+class GotwayParser(private val wheelData: WheelDataInterface) {
+    var voltageMultiplier = DEFAULT_VOLTAGE_MULTIPLIER
 
     private val ringBuffer = ArrayDeque<Byte>(MAX_RING_BUFFER_SIZE)
     private val frame = ByteBuffer.allocate(24)
 
-    var packets = 0
-    var lostPackets = 0
+    private var packets = 0
+    private var lostPackets = 0
 
     fun findFrame(input: ByteArray): Boolean {
         /*
@@ -114,7 +115,7 @@ class GotwayParser(val wheelData: WheelDataInterface) {
                 frame.position(2)
 
                 // 2-3
-                val voltage = frame.ushort / 67.2 * 84.0 / 100.0
+                val voltage = frame.ushort / 67.2 * voltageMultiplier / 100.0
                 // 4-5
                 val speed = frame.short * 3.6 / 100
                 // 6-9
@@ -175,6 +176,8 @@ class GotwayParser(val wheelData: WheelDataInterface) {
     }
 
     companion object {
+        const val DEFAULT_VOLTAGE_MULTIPLIER = 100.8f
+
         private const val FRAME_SIZE = 24
         private const val MAX_RING_BUFFER_SIZE = 40
         private val HEADER = declareByteArray(0x55, 0xaa).asList()

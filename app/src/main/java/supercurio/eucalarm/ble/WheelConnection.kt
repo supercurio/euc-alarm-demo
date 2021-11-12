@@ -19,7 +19,9 @@ import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.ble.find.FindReconnectWheel
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.log.AppLog
-import supercurio.eucalarm.oems.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.GotwayAndVeteranParser
+import supercurio.eucalarm.parsers.NoConfig
+import supercurio.eucalarm.parsers.ParserConfig
 import supercurio.eucalarm.power.PowerManagement
 import java.util.*
 import javax.inject.Inject
@@ -67,8 +69,11 @@ class WheelConnection @Inject constructor(
     // Flows
     private val _notifiedCharacteristic = MutableSharedFlow<NotifiedCharacteristic>()
     val notifiedCharacteristic = _notifiedCharacteristic.asSharedFlow()
+
     private val _connectionStateFlow = MutableStateFlow(BleConnectionState.UNSET)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
+
+    val parserConfigFlow = MutableStateFlow<ParserConfig>(NoConfig)
 
     fun reconnectDeviceAddr(deviceAddr: String) {
         registerBtStateChangeReceiver()
@@ -157,7 +162,7 @@ class WheelConnection @Inject constructor(
         disconnectDevice()
     }
 
-    fun enableGotwayAndVeteranNotification() {
+    private fun enableGotwayAndVeteranNotification() {
         Log.i(TAG, "Enable Gotway/Veteran notification")
         _gatt?.let { gatt ->
             val service = gatt.getService(UUID.fromString(GotwayAndVeteranParser.SERVICE_UUID))
@@ -229,7 +234,11 @@ class WheelConnection @Inject constructor(
                 return
             }
 
-            gotwayAndVeteranParser = GotwayAndVeteranParser(wheelData)
+            gotwayAndVeteranParser = GotwayAndVeteranParser(
+                wheelData,
+                parserConfigFlow,
+                gatt.device.address
+            )
             enableGotwayAndVeteranNotification()
             connectionState = BleConnectionState.RECEIVING_DATA
             appLog.log("Successful connection to $deviceName (${gatt.device.address})")
@@ -253,8 +262,10 @@ class WheelConnection @Inject constructor(
     }
 
     private fun gotDisconnected(gatt: BluetoothGatt? = null, failed: Boolean = false) {
+        gotwayAndVeteranParser?.stop()
         gotwayAndVeteranParser = null
         wheelData.clear()
+        gotwayAndVeteranParser?.stop()
 
         // disable notifications
         disableGattNotifications()

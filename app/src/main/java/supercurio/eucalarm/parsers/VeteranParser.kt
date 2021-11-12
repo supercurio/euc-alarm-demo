@@ -1,4 +1,4 @@
-package supercurio.eucalarm.oems
+package supercurio.eucalarm.parsers
 
 import supercurio.eucalarm.data.WheelDataInterface
 import supercurio.eucalarm.utils.DataParsing.bytes
