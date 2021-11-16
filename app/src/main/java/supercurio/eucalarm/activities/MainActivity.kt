@@ -349,19 +349,20 @@ class MainActivity : ComponentActivity() {
                 SmallTextData(title = "Total Distance", format = "%.3f", unit = "km", value = it)
             }
 
-            val beeper = wheelData.beeperFlow.collectAsState().value
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color = if (beeper) Color.Red else Color.Green)
-                    .padding(20.dp)
-            ) {
-                Text(
-                    "Beeper: ${(if (beeper) "ON" else "OFF / Unknown")}",
-                    fontSize = 30.sp,
-                )
+            wheelData.beeperFlow.collectAsState().value?.let { beeper ->
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(color = if (beeper) Color.Red else Color.Green)
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "Beeper: ${(if (beeper) "ON" else "OFF / Unknown")}",
+                        fontSize = 30.sp,
+                    )
+                }
             }
         }
     }

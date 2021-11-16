@@ -12,7 +12,7 @@ class WheelDataPrimitives(
     override var current: Double? = null
     override var temperature: Double? = null
     override var tilt: Double? = null
-    override var beeper = false
+    override var beeper: Boolean? = null
 
     override fun gotNewData() {
         newDataCallback?.invoke(this)

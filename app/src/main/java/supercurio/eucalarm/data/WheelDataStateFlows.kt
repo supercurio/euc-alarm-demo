@@ -67,7 +67,7 @@ class WheelDataStateFlows @Inject constructor() : WheelDataInterface {
     /**
      * Beeper status
      */
-    val beeperFlow = MutableStateFlow(false)
+    val beeperFlow = MutableStateFlow<Boolean?>(null)
     override var beeper
         get() = beeperFlow.value
         set(value) {

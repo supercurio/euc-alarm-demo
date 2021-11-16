@@ -45,7 +45,8 @@ interface WheelDataInterface {
     /**
      * Beeper status
      */
-    var beeper: Boolean
+    var beeper: Boolean?
+
 
 
     fun gotNewData()
@@ -57,7 +58,6 @@ interface WheelDataInterface {
         totalDistance = null
         current = null
         temperature = null
-
-        beeper = false
+        beeper = null
     }
 }
