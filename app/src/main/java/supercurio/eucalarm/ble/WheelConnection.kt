@@ -17,6 +17,8 @@ import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.ble.find.FindReconnectWheel
+import supercurio.eucalarm.ble.wrappers.BluetoothAdapterLock
+import supercurio.eucalarm.ble.wrappers.GattClient
 import supercurio.eucalarm.data.WheelDataStateFlows
 import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.parsers.GotwayAndVeteranParser
@@ -35,6 +37,7 @@ class WheelConnection @Inject constructor(
     private val appStateStore: AppStateStore,
     private val devicesNamesCache: DevicesNamesCache,
     private val appLog: AppLog,
+    private val bluetoothAdapterLock: BluetoothAdapterLock,
 ) {
     private val btManager = context.getSystemService<BluetoothManager>()!!
 
@@ -52,13 +55,13 @@ class WheelConnection @Inject constructor(
 
     private var shouldStayConnected = false
 
-    private var _gatt: BluetoothGatt? = null
-    private var notificationChar: BluetoothGattCharacteristic? = null
+    var gattClient: GattClient? = null
+        private set
+
     private var gotwayAndVeteranParser: GotwayAndVeteranParser? = null
     private var deviceFound: DeviceFound? = null
 
-    val gatt get() = _gatt
-    val device get() = _gatt?.device
+    val device get() = gattClient?.device
     val advertisement get() = deviceFound?.scanRecord
     val deviceName
         get() = device?.name ?: devicesNamesCache[device?.address
@@ -89,7 +92,7 @@ class WheelConnection @Inject constructor(
         if (gattConnected) {
             Log.w(TAG, "Trying to connect while GATT client already is, ignoring")
             return
-        } else destroyCurrentGatt()
+        } else destroyGattClient()
 
         // set app state
         appStateStore.setState(ConnectedState(inputDeviceToConnect.device.address))
@@ -115,7 +118,7 @@ class WheelConnection @Inject constructor(
         when (btManager.getConnectionState(deviceToConnect.device, BluetoothProfile.GATT)) {
             // already connected: connect if the connection is not already ready and we're not
             // trying to reconnect already
-            BluetoothGatt.STATE_CONNECTED -> if (_gatt == null) doConnect(deviceToConnect.device)
+            BluetoothGatt.STATE_CONNECTED -> if (gattClient == null) doConnect(deviceToConnect.device)
             BluetoothGatt.STATE_CONNECTING -> Log.i(TAG, "Device already connecting")
 
             // disconnecting or disconnected, connect again
@@ -147,7 +150,7 @@ class WheelConnection @Inject constructor(
         shouldStayConnected = false
         powerManagement.removeLock(TAG)
         disableGattNotifications()
-        _gatt?.disconnect()
+        gattClient?.disconnect()
     }
 
     fun setReplayState(state: Boolean) {
@@ -162,21 +165,8 @@ class WheelConnection @Inject constructor(
         disconnectDevice()
     }
 
-    private fun enableGotwayAndVeteranNotification() {
-        Log.i(TAG, "Enable Gotway/Veteran notification")
-        _gatt?.let { gatt ->
-            val service = gatt.getService(UUID.fromString(GotwayAndVeteranParser.SERVICE_UUID))
-            notificationChar = service.getCharacteristic(
-                UUID.fromString(GotwayAndVeteranParser.DATA_CHARACTERISTIC_UUID)
-            )?.apply {
-                Log.d(TAG, "char uuid: ${this.uuid}")
-                setNotification(gatt, true)
-            }
-        }
-    }
-
     private fun doConnect(device: BluetoothDevice) {
-        _gatt = device.connectGatt(context, false, gattCallback)
+        gattClient = GattClient(context, device, gattCallback, bluetoothAdapterLock)
         devicesNamesCache.remember(device)
     }
 
@@ -230,7 +220,7 @@ class WheelConnection @Inject constructor(
 
             // service discovery failed to find the one we're interested in
             if (notificationService == null) {
-                destroyCurrentGatt()
+                destroyGattClient()
                 return
             }
 
@@ -240,7 +230,7 @@ class WheelConnection @Inject constructor(
                 gatt.device.address
             )
             enableGotwayAndVeteranNotification()
-            connectionState = BleConnectionState.RECEIVING_DATA
+            connectionState = BleConnectionState.CONNECTED_READY
             appLog.log("Successful connection to $deviceName (${gatt.device.address})")
         }
 
@@ -277,22 +267,21 @@ class WheelConnection @Inject constructor(
 
                 appLog.log("Attempt to reconnect")
                 val address = it.device.address
-                destroyCurrentGatt()
+                destroyGattClient()
                 doConnect(btManager.adapter.getRemoteDevice(address))
             }
         } else {
             connectionState = BleConnectionState.DISCONNECTED
-            destroyCurrentGatt()
-            notificationChar = null
+            destroyGattClient()
         }
     }
 
-    private fun destroyCurrentGatt() = _gatt?.let {
+    private fun destroyGattClient() = gattClient?.let {
         Log.d(TAG, "Destroy current GATT client")
         gattConnected = false
         it.disconnect()
         it.close()
-        _gatt = null
+        gattClient = null
     }
 
     private val btStateChangeReceiver = object : BroadcastReceiver() {
@@ -303,8 +292,7 @@ class WheelConnection @Inject constructor(
                 BluetoothAdapter.STATE_OFF -> {
                     Log.i(TAG, "Bluetooth adapter off")
                     connectionState = BleConnectionState.BLUETOOTH_OFF
-                    _gatt?.disconnect()
-                    _gatt = null
+                    destroyGattClient()
                     gotDisconnected()
                 }
 
@@ -326,18 +314,21 @@ class WheelConnection @Inject constructor(
         }
     }
 
-    private fun disableGattNotifications() =
-        notificationChar?.apply { gatt?.let { setNotification(it, false) } }
+    private val notificationChar
+        get() = gattClient?.let { gattClient ->
+            gattClient
+                .getService(UUID.fromString(GotwayAndVeteranParser.SERVICE_UUID))
+                ?.getCharacteristic(UUID.fromString(GotwayAndVeteranParser.DATA_CHARACTERISTIC_UUID))
+        }
 
-    private fun BluetoothGattCharacteristic.setNotification(gatt: BluetoothGatt, status: Boolean) {
-        gatt.setCharacteristicNotification(this, status)
+    private fun enableGotwayAndVeteranNotification() {
+        Log.i(TAG, "Enable Gotway/Veteran notification")
+        gattClient?.setCharacteristicNotificationAndDescriptor(notificationChar, true)
+    }
 
-        val desc = getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))
-        desc.value = if (status)
-            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-        else
-            BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-        gatt.writeDescriptor(desc)
+    private fun disableGattNotifications() {
+        Log.i(TAG, "Disable Gotway/Veteran notification")
+        gattClient?.setCharacteristicNotificationAndDescriptor(notificationChar, true)
     }
 
     private fun logConnectionStateChange(text: String, status: Int) =
@@ -345,6 +336,5 @@ class WheelConnection @Inject constructor(
 
     companion object {
         private const val TAG = "WheelConnection"
-        private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
     }
 }

@@ -98,7 +98,7 @@ class AppService : Service() {
             is RecordingState -> {
                 Log.i(TAG, "Reconnect device and resume recording")
                 wheelConnection.reconnectDeviceAddr(state.deviceAddr)
-                wheelBleRecorder.start(applicationContext, state.deviceAddr)
+                wheelBleRecorder.start(state.deviceAddr)
             }
         }
 
@@ -136,7 +136,7 @@ class AppService : Service() {
         when (state) {
             BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"
             BleConnectionState.CONNECTING -> "Connecting to ${wheelConnection.deviceName}"
-            BleConnectionState.RECEIVING_DATA -> "Receiving data from ${wheelConnection.deviceName}"
+            BleConnectionState.CONNECTED_READY -> "Connected (ready) to ${wheelConnection.deviceName}"
             BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
             BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
             BleConnectionState.BLUETOOTH_OFF -> "Bluetooth is off"

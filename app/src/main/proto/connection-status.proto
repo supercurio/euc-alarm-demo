@@ -12,5 +12,5 @@ enum ConnectionState {
     CONNECTING = 5;
     DISCONNECTED_RECONNECTING = 6;
     CONNECTED = 7;
-    RECEIVING_DATA = 8;
+    CONNECTED_READY = 8;
 }

@@ -1,7 +1,6 @@
 package supercurio.eucalarm.ble
 
 import android.bluetooth.*
-import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
@@ -14,13 +13,11 @@ import android.os.SystemClock
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
-import supercurio.eucalarm.ble.wrappers.SuspendingGattServer
+import supercurio.eucalarm.ble.wrappers.BluetoothAdapterLock
+import supercurio.eucalarm.ble.wrappers.GattServer
 import supercurio.eucalarm.parsers.GotwayAndVeteranParser
 import supercurio.eucalarm.power.PowerManagement
-import supercurio.eucalarm.utils.RecordingProvider
-import supercurio.eucalarm.utils.TimeUtils
-import supercurio.eucalarm.utils.btManager
-import supercurio.eucalarm.utils.toHexString
+import supercurio.eucalarm.utils.*
 import supercurio.wheeldata.recording.BleAdvertisement
 import supercurio.wheeldata.recording.RecordingMessageType
 import java.io.InputStream
@@ -31,12 +28,13 @@ import javax.inject.Singleton
 @Singleton
 class WheelBleSimulator @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val powerManagement: PowerManagement
+    private val powerManagement: PowerManagement,
+    private val bluetoothAdapterLock: BluetoothAdapterLock,
 ) {
 
     private var simulatorScope: CoroutineScope? = null
 
-    private var server: SuspendingGattServer? = null
+    private var server: GattServer? = null
     private var input: RecordingProvider? = null
 
     private var characteristicsKeys: CharacteristicsKeys? = null
@@ -56,8 +54,9 @@ class WheelBleSimulator @Inject constructor(
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 Log.i(TAG, "Intent: ${intent.action}")
-            }
 
+                // TODO: restart
+            }
         }
         context.registerReceiver(receiver, intentFilter)
 
@@ -66,42 +65,44 @@ class WheelBleSimulator @Inject constructor(
 
         characteristicsKeys = CharacteristicsKeys()
 
-        server = SuspendingGattServer(context, gattServerCallback)
+        server = GattServer(context, gattServerCallback, bluetoothAdapterLock)
         readDeviceInfo(recordingProvider.inputStream).let { deviceInfo ->
             characteristicsKeys?.fromDeviceInfo(deviceInfo)
 
             Log.i(TAG, "Device Info: $deviceInfo")
 
-            deviceInfo.gattServicesList.forEach { service ->
-                Log.i(TAG, "Found service: ${service.uuid} type: ${service.type}")
+            simulatorScope?.launch {
+                deviceInfo.gattServicesList.forEach { service ->
+                    Log.i(TAG, "Found service: ${service.uuid} type: ${service.type}")
 
-                if (SKIP_SERVICES.contains(service.uuid)) return@forEach
+                    if (SKIP_SERVICES.contains(service.uuid)) return@forEach
 
-                val srv = BluetoothGattService(
-                    UUID.fromString(service.uuid),
-                    service.type
-                )
-
-                service.gattCharacteristicsMap.values.forEach { characteristic ->
-                    val char = BluetoothGattCharacteristic(
-                        UUID.fromString(characteristic.uuid),
-                        characteristic.properties,
-                        BluetoothGattCharacteristic.PERMISSION_READ or
-                                BluetoothGattCharacteristic.PERMISSION_WRITE
+                    val srv = BluetoothGattService(
+                        UUID.fromString(service.uuid),
+                        service.type
                     )
 
-                    characteristic.gattDescriptorsList.forEach { descriptor ->
-                        val desc = BluetoothGattDescriptor(
-                            UUID.fromString(descriptor.uuid),
-                            BluetoothGattDescriptor.PERMISSION_READ or
-                                    BluetoothGattDescriptor.PERMISSION_WRITE
+                    service.gattCharacteristicsMap.values.forEach { characteristic ->
+                        val char = BluetoothGattCharacteristic(
+                            UUID.fromString(characteristic.uuid),
+                            characteristic.properties,
+                            BluetoothGattCharacteristic.PERMISSION_READ or
+                                    BluetoothGattCharacteristic.PERMISSION_WRITE
                         )
-                        char.addDescriptor(desc)
-                    }
-                    srv.addCharacteristic(char)
-                }
 
-                simulatorScope?.launch { server?.addService(srv) }
+                        characteristic.gattDescriptorsList.forEach { descriptor ->
+                            val desc = BluetoothGattDescriptor(
+                                UUID.fromString(descriptor.uuid),
+                                BluetoothGattDescriptor.PERMISSION_READ or
+                                        BluetoothGattDescriptor.PERMISSION_WRITE
+                            )
+                            char.addDescriptor(desc)
+                        }
+                        srv.addCharacteristic(char)
+                    }
+
+                    server?.addService(srv)
+                }
             }
 
             advertisement = deviceInfo.advertisement
@@ -302,7 +303,7 @@ class WheelBleSimulator @Inject constructor(
         }
     }
 
-    private val advertiserCallback = object : AdvertiseCallback() {}
+    private val advertiserCallback = BluetoothUtils.getAdvertiserCallback(TAG)
 
     companion object {
         private const val TAG = "WheelBleSimulator"

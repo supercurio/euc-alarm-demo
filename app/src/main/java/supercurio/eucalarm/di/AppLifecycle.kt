@@ -6,6 +6,7 @@ import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.WheelsConfig
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.OffState
+import supercurio.eucalarm.ble.WheelBleProxy
 import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelBleSimulator
 import supercurio.eucalarm.ble.WheelConnection
@@ -27,6 +28,7 @@ class AppLifecycle @Inject constructor(
     private val wheelConnection: WheelConnection,
     private val alert: AlertFeedback,
     private val wheelBleRecorder: WheelBleRecorder,
+    private val wheelBleProxy: WheelBleProxy,
     private val simulator: WheelBleSimulator,
     private val notifications: Notifications,
     private val appLog: AppLog,
@@ -44,6 +46,7 @@ class AppLifecycle @Inject constructor(
         wheelData.clear()
         notifications.muted = false
         alert.setup()
+        wheelBleProxy.setup()
 
         wheelsConfig.start()
 
@@ -63,6 +66,7 @@ class AppLifecycle @Inject constructor(
         powerManagement.releaseAll()
         wheelData.clear()
         wheelBleRecorder.shutDown()
+        wheelBleProxy.shutdown()
         alert.shutdown()
         AppService.enable(context, false)
         appStateStore.setState(OffState)

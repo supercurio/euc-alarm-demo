@@ -81,7 +81,7 @@ class AlertFeedback @Inject constructor(
                 when (state) {
                     BleConnectionState.CONNECTING,
                     BleConnectionState.CONNECTED,
-                    BleConnectionState.RECEIVING_DATA,
+                    BleConnectionState.CONNECTED_READY,
                     BleConnectionState.REPLAY,
                     BleConnectionState.DISCONNECTED_RECONNECTING,
                     BleConnectionState.SCANNING,

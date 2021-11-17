@@ -37,7 +37,7 @@ enum class BleConnectionState(val canDisconnect: Boolean) {
         canDisconnect = true
     ),
 
-    RECEIVING_DATA(
+    CONNECTED_READY(
         canDisconnect = true
     ),
 

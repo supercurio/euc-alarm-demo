@@ -37,7 +37,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import supercurio.eucalarm.BuildConfig
-import supercurio.eucalarm.appstate.AppState
+import supercurio.eucalarm.GeneralConfig
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.OnStateDefault
 import supercurio.eucalarm.ble.*
@@ -54,7 +54,6 @@ import supercurio.eucalarm.utils.RecordingProvider
 import supercurio.eucalarm.utils.btManager
 import supercurio.eucalarm.utils.directBootContext
 import supercurio.eucalarm.utils.locationEnabled
-import java.text.DecimalFormat
 import javax.inject.Inject
 
 
@@ -88,10 +87,16 @@ class MainActivity : ComponentActivity() {
     lateinit var wheelBleRecorder: WheelBleRecorder
 
     @Inject
+    lateinit var wheelBleProxy: WheelBleProxy
+
+    @Inject
     lateinit var simulator: WheelBleSimulator
 
     @Inject
     lateinit var appLog: AppLog
+
+    @Inject
+    lateinit var generalConfig: GeneralConfig
 
     private lateinit var player: WheelBlePlayer
 
@@ -270,7 +275,7 @@ class MainActivity : ComponentActivity() {
             } else {
 
                 val stateText = when (bleConnectionState) {
-                    BleConnectionState.RECEIVING_DATA -> "receiving data"
+                    BleConnectionState.CONNECTED_READY -> "connected, ready"
                     BleConnectionState.DISCONNECTED_RECONNECTING -> "reconnecting"
                     BleConnectionState.CONNECTING -> "connecting"
                     BleConnectionState.CONNECTED -> "connected"
@@ -282,6 +287,16 @@ class MainActivity : ComponentActivity() {
                     Text("Disconnect ${wheelConnection.deviceName} ($stateText)")
                 }
             }
+
+            Row {
+                Text("Enable Wheel Proxy: ")
+                var wheelProxyChecked by remember { mutableStateOf(generalConfig.wheelProxy) }
+                Checkbox(checked = wheelProxyChecked, onCheckedChange = {
+                    wheelProxyChecked = it
+                    enableWheelProxy(it)
+                })
+            }
+
 
             Button(onClick = { manualStop() }) { Text("Stop and exit app") }
 
@@ -312,11 +327,10 @@ class MainActivity : ComponentActivity() {
 
 
             val recordingState by wheelBleRecorder.isRecording.collectAsState()
-            if (bleConnectionState == BleConnectionState.RECEIVING_DATA && !recordingState)
+            if (bleConnectionState == BleConnectionState.CONNECTED_READY && !recordingState)
                 Button(onClick = { record() }) { Text("Record") }
             if (recordingState)
                 Button(onClick = { stopRecording() }) { Text("Stop recording") }
-
 
             wheelConnection.parserConfigFlow.collectAsState().value.let { config ->
                 if (config is GotwayConfig) {
@@ -329,7 +343,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val df = DecimalFormat("#.###")
             wheelData.speedFlow.collectAsState().value?.let {
                 BigTextData("Speed", "%2.1f", "km/h", it)
             }
@@ -403,12 +416,12 @@ class MainActivity : ComponentActivity() {
     private fun RadioButtons(voltage: Float, gotwayConfig: GotwayConfig) {
         Text("${voltage}V")
         RadioButton(selected = gotwayConfig.voltage == voltage,
-                    onClick = {
-                        wheelConnection.parserConfigFlow.value = GotwayConfig(
-                            address = gotwayConfig.address,
-                            voltage = voltage
-                        )
-                    })
+            onClick = {
+                wheelConnection.parserConfigFlow.value = GotwayConfig(
+                    address = gotwayConfig.address,
+                    voltage = voltage
+                )
+            })
     }
 
     @Preview(name = "Light Mode")
@@ -424,8 +437,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun enableWheelProxy(enabled: Boolean) {
+        generalConfig.wheelProxy = true
+        when {
+            enabled && wheelConnection.connectionState == BleConnectionState.CONNECTED_READY ->
+                wheelBleProxy.start()
+
+            !enabled -> wheelBleProxy.stop()
+        }
+    }
+
     private fun record() {
-        wheelBleRecorder.start(applicationContext)
+        wheelBleRecorder.start()
     }
 
     private fun stopRecording() {

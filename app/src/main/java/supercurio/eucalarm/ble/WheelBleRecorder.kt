@@ -6,6 +6,7 @@ import android.content.Context
 import android.util.Log
 import androidx.core.util.forEach
 import com.google.protobuf.kotlin.toByteString
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 
 @Singleton
 class WheelBleRecorder @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val connection: WheelConnection,
     private val appStateStore: AppStateStore,
 ) {
@@ -32,7 +34,7 @@ class WheelBleRecorder @Inject constructor(
 
     val isRecording = MutableStateFlow(false)
 
-    fun start(context: Context, storedDeviceAddr: String? = null) {
+    fun start(storedDeviceAddr: String? = null) {
         val currentDeviceAddr = connection.device?.address
 
         if (storedDeviceAddr != null &&
@@ -46,13 +48,13 @@ class WheelBleRecorder @Inject constructor(
         recorderScope = (CoroutineScope(Dispatchers.Default) + CoroutineName(TAG))
 
         when (connection.connectionStateFlow.value) {
-            BleConnectionState.RECEIVING_DATA -> {
+            BleConnectionState.CONNECTED_READY -> {
                 Log.i(TAG, "Connection is ready, record")
                 doRecording(context)
             }
             else -> recorderScope?.launch {
                 connection.connectionStateFlow
-                    .filter { it == BleConnectionState.RECEIVING_DATA }
+                    .filter { it == BleConnectionState.CONNECTED_READY }
                     .take(1)
                     .collect {
                         if (storedDeviceAddr == connection.device?.address) {
@@ -98,13 +100,13 @@ class WheelBleRecorder @Inject constructor(
             connection.deviceName
         ).outputStream().buffered()
 
-        connection.gatt?.let { gatt ->
+        connection.gattClient?.let { gattClient ->
             // serves as header
             Log.i(TAG, "Write device info")
             writeDeviceInfo(
-                deviceAddress = gatt.device.address,
-                deviceName = gatt.device.name ?: "name-missing",
-                deviceServices = gatt.services,
+                deviceAddress = gattClient.device.address,
+                deviceName = gattClient.device.name ?: "name-missing",
+                deviceServices = gattClient.services,
                 scanRecord = connection.advertisement
             )
 
@@ -112,10 +114,10 @@ class WheelBleRecorder @Inject constructor(
             writeRecordingInfo()
 
             // subscribe to each characteristic with notification
-            gatt.services.forEach { service ->
+            gattClient.services.forEach { service ->
                 service.characteristics.forEach { characteristic ->
                     if (characteristic.hasNotify())
-                        gatt.setCharacteristicNotification(characteristic, true)
+                        gattClient.setCharacteristicNotification(characteristic, true)
                 }
             }
         }
@@ -205,7 +207,7 @@ class WheelBleRecorder @Inject constructor(
         BleConnectionState.CONNECTING -> ConnectionState.CONNECTING
         BleConnectionState.DISCONNECTED_RECONNECTING -> ConnectionState.DISCONNECTED_RECONNECTING
         BleConnectionState.CONNECTED -> ConnectionState.CONNECTED
-        BleConnectionState.RECEIVING_DATA -> ConnectionState.RECEIVING_DATA
+        BleConnectionState.CONNECTED_READY -> ConnectionState.CONNECTED_READY
         else -> ConnectionState.UNSET
     }.writeWireMessageTo(out)
 

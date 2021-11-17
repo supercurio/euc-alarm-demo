@@ -2,13 +2,14 @@ package supercurio.eucalarm.ble.wrappers
 
 import android.bluetooth.*
 import android.content.Context
+import android.util.Log
 import androidx.core.content.getSystemService
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlin.concurrent.withLock
 
-class SuspendingGattServer(context: Context, private val callback: BluetoothGattServerCallback) {
-
+class GattServer(
+    context: Context, private val callback: BluetoothGattServerCallback,
+    private val bluetoothAdapterLock: BluetoothAdapterLock,
+) {
     private val serverCallback = ServerCallback()
 
     private val btManager = context.getSystemService<BluetoothManager>()!!
@@ -17,18 +18,17 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
     val services: List<BluetoothGattService>
         get() = server.services
 
-    suspend fun addService(bluetoothGattService: BluetoothGattService) =
-        suspendCoroutine<Int> { cont ->
-            serverCallback.continuation = cont
+    fun addService(bluetoothGattService: BluetoothGattService): Int =
+        bluetoothAdapterLock.lock.withLock {
             server.addService(bluetoothGattService)
+            return bluetoothAdapterLock.awaitStatus()
         }
 
-    suspend fun notifyCharacteristicChanged(
+    fun notifyCharacteristicChanged(
         device: BluetoothDevice,
         characteristic: BluetoothGattCharacteristic,
         confirm: Boolean
-    ) = suspendCoroutine<Int> { cont ->
-        serverCallback.continuation = cont
+    ) = bluetoothAdapterLock.lock.withLock {
         server.notifyCharacteristicChanged(device, characteristic, confirm)
     }
 
@@ -43,16 +43,25 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
     fun clearServices() = server.clearServices()
     fun close() = server.close()
 
-    inner class ServerCallback : BluetoothGattServerCallback() {
-        var continuation: Continuation<Int>? = null
+    fun disconnectAllDevices() {
+        btManager
+            .getConnectedDevices(BluetoothProfile.GATT_SERVER)
+            .forEach {
+                Log.i(TAG, "Cancel connection to $it")
+                server.cancelConnection(it)
+            }
+    }
 
-        private fun resumeContinuation(status: Int) = continuation?.apply {
-            continuation = null
-            resume(status)
-        }
+    fun isConnected(device: BluetoothDevice) = btManager
+        .getConnectedDevices(BluetoothProfile.GATT_SERVER)
+        .contains(device)
+
+    fun removeService(service: BluetoothGattService) = server.removeService(service)
+
+    inner class ServerCallback : BluetoothGattServerCallback() {
 
         override fun onServiceAdded(status: Int, service: BluetoothGattService) {
-            resumeContinuation(status)
+            bluetoothAdapterLock.signalAll(status)
             callback.onServiceAdded(status, service)
         }
 
@@ -114,8 +123,12 @@ class SuspendingGattServer(context: Context, private val callback: BluetoothGatt
 
 
         override fun onNotificationSent(device: BluetoothDevice?, status: Int) {
-            resumeContinuation(status)
+            bluetoothAdapterLock.signalAll(status)
             callback.onNotificationSent(device, status)
         }
+    }
+
+    companion object {
+        private const val TAG = "GattServer"
     }
 }
