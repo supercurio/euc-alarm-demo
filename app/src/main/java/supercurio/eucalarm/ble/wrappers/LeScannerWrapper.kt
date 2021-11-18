@@ -2,7 +2,6 @@ package supercurio.eucalarm.ble.wrappers
 
 import android.bluetooth.le.*
 import android.content.Context
-import android.text.format.DateUtils
 import android.util.Log
 import kotlinx.coroutines.*
 import supercurio.eucalarm.utils.BluetoothUtils.toScanFailError
@@ -120,11 +119,6 @@ class LeScannerWrapper(
 
     companion object {
         private const val TAG = "LeScannerWrapper"
-
-        // TODO: Maybe implement some throttling mechanism using these values
-        // source: https://cs.android.com/android/platform/superproject/+/master:packages/apps/Bluetooth/src/com/android/bluetooth/btservice/AdapterService.java
-        private const val DEFAULT_SCAN_QUOTA_COUNT = 5
-        private const val DEFAULT_SCAN_QUOTA_WINDOW_MILLIS = 30 * DateUtils.SECOND_IN_MILLIS
     }
 }
 
