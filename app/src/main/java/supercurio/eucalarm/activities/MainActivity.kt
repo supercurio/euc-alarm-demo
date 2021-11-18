@@ -202,9 +202,10 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun MyLayout() {
         Text(
-            "version: ${BuildConfig.VERSION_NAME}",
+            "v${BuildConfig.VERSION_NAME} ",
             textAlign = TextAlign.Right,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
         )
 
         Column(modifier = Modifier.padding(16.dp)) {
@@ -386,7 +387,7 @@ class MainActivity : ComponentActivity() {
             Text(title)
             Text(
                 String.format(format, value) + " $unit".padEnd(4),
-                fontSize = 40.sp,
+                fontSize = 46.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Right,
