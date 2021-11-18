@@ -5,8 +5,12 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.ScanCallback
 import android.util.Log
+import java.nio.ByteBuffer
+import java.util.*
 
 object BluetoothUtils {
+
+    val CLIENT_CHARACTERISTIC_CONFIG: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
     fun toScanFailError(errorCode: Int) = when (errorCode) {
         ScanCallback.SCAN_FAILED_ALREADY_STARTED -> "SCAN_FAILED_ALREADY_STARTED"
@@ -41,5 +45,15 @@ object BluetoothUtils {
 
             Log.i(tag, "Advertisement start failure: $failure")
         }
+    }
+
+    fun customGattUuid(value: Int): UUID {
+        val bb = ByteBuffer.allocate(2 * Long.SIZE_BYTES).apply {
+            putInt(value)
+            put("supercurio:)".toByteArray())
+            rewind()
+        }
+
+        return UUID(bb.long, bb.long)
     }
 }

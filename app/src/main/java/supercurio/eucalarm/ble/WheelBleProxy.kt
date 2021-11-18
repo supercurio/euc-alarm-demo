@@ -22,7 +22,9 @@ import supercurio.eucalarm.ble.wrappers.GattServer
 import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.parsers.GotwayAndVeteranParser
 import supercurio.eucalarm.utils.BluetoothUtils
+import supercurio.eucalarm.utils.BluetoothUtils.CLIENT_CHARACTERISTIC_CONFIG
 import supercurio.eucalarm.utils.toHexString
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,6 +51,9 @@ class WheelBleProxy @Inject constructor(
     private var proxyDescriptors = ConcurrentHashMap<String, BluetoothGattDescriptor>()
 
     private val connectedDevices = ConcurrentHashMap<String, BluetoothDevice>()
+    private val devicesReceivingStatus = ConcurrentHashMap<String, BluetoothDevice>()
+
+    private var proxyStatusCharacteristic: BluetoothGattCharacteristic? = null
 
     private val isSupported get() = adapter.bluetoothLeAdvertiser != null
 
@@ -61,6 +66,7 @@ class WheelBleProxy @Inject constructor(
                     BleConnectionState.CONNECTED_READY -> {
                         // refresh services characteristics and descriptors from the new gatt client
                         if (status.value) cacheSrcServices()
+                        notifyProxyStatus()
 
                         enable(true)
                     }
@@ -68,7 +74,7 @@ class WheelBleProxy @Inject constructor(
                     BleConnectionState.DISCONNECTED,
                     BleConnectionState.BLUETOOTH_OFF -> enable(false)
 
-                    else -> {} // Do nothing
+                    else -> notifyProxyStatus()
                 }
             }
         }
@@ -84,7 +90,8 @@ class WheelBleProxy @Inject constructor(
         proxyScope = CoroutineScope(Dispatchers.Default) + CoroutineName(TAG)
 
         cacheSrcServices()
-        addServices()
+        addProxyServices()
+        addCustomService()
         advertise()
 
         proxyScope?.launch {
@@ -99,12 +106,15 @@ class WheelBleProxy @Inject constructor(
     }
 
     fun stop() {
+        Log.i(TAG, "Stop")
         connectedDevices.clear()
-
-        stopAdvertising()
-
         proxyScope?.cancel()
         proxyScope = null
+
+        notifyProxyStatus(status = PROXY_STATUS_STOPPING)
+        proxyStatusCharacteristic = null
+
+        stopAdvertising()
 
         server?.disconnectAllDevices()
         server?.clearServices()
@@ -140,7 +150,7 @@ class WheelBleProxy @Inject constructor(
         }
     }
 
-    private fun addServices() {
+    private fun addProxyServices() {
         val gattClient = connection.gattClient ?: return
 
         // mirror services
@@ -186,6 +196,45 @@ class WheelBleProxy @Inject constructor(
                 Log.i(TAG, "Service added: ${BluetoothUtils.toServiceAddedStatus(status)}")
             }
         }
+    }
+
+    private fun addCustomService() {
+        val customService = BluetoothGattService(
+            CUSTOM_SERVICE_UUID,
+            BluetoothGattService.SERVICE_TYPE_PRIMARY
+        )
+
+        val statusChar = BluetoothGattCharacteristic(
+            CUSTOM_PROXY_STATUS,
+            BluetoothGattCharacteristic.PROPERTY_READ or
+                    BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PERMISSION_READ
+        )
+        statusChar.addDescriptor(
+            BluetoothGattDescriptor(
+                CLIENT_CHARACTERISTIC_CONFIG,
+                BluetoothGattDescriptor.PERMISSION_READ or
+                        BluetoothGattDescriptor.PERMISSION_WRITE
+            )
+        )
+
+        proxyStatusCharacteristic = statusChar
+        customService.addCharacteristic(statusChar)
+
+        listOf(
+            CUSTOM_CHAR_ORIGINAL_NAME,
+            CUSTOM_ORIGINAL_MAC_ADDR
+        ).forEach { uuid ->
+            customService.addCharacteristic(
+                BluetoothGattCharacteristic(
+                    uuid,
+                    BluetoothGattCharacteristic.PROPERTY_READ,
+                    BluetoothGattCharacteristic.PERMISSION_READ
+                )
+            )
+        }
+
+        server?.addService(customService)
     }
 
     private fun advertise() {
@@ -283,6 +332,7 @@ class WheelBleProxy @Inject constructor(
 
                 BluetoothGattServer.STATE_DISCONNECTED -> {
                     connectedDevices.remove(device.address)
+                    devicesReceivingStatus.remove(device.address)
                     Log.i(TAG, "Device removed: $device")
                     logConnectedDevices()
                 }
@@ -314,7 +364,28 @@ class WheelBleProxy @Inject constructor(
             offset: Int,
             value: ByteArray
         ) {
-            Log.v(TAG, "onDescriptorWriteRequest for ${proxyDesc.uuid}")
+            Log.v(
+                TAG, "onDescriptorWriteRequest for ${proxyDesc.uuid}, on " +
+                        "${proxyDesc.characteristic.uuid}"
+            )
+
+            when (proxyDesc.characteristic.uuid) {
+                CUSTOM_PROXY_STATUS -> {
+                    val enabled = listOf(
+                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE,
+                        BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                    )
+
+                    if (enabled.any { it.contentEquals(value) }) {
+                        Log.v(TAG, "Enable status notifications for $device")
+                        devicesReceivingStatus[device.address] = device
+                        notifyProxyStatus(device)
+                    } else {
+                        Log.v(TAG, "Disable status notifications for $device")
+                        devicesReceivingStatus.remove(device.address)
+                    }
+                }
+            }
 
             val gattClient = connection.gattClient ?: return
             val srcDescriptor = srcDescriptors[proxyDesc.uuid.toString()] ?: return
@@ -331,6 +402,30 @@ class WheelBleProxy @Inject constructor(
             proxyChar: BluetoothGattCharacteristic
         ) {
             Log.v(TAG, "#$requestId Read characteristic ${proxyChar.uuid}")
+
+            when (proxyChar.uuid) {
+                CUSTOM_CHAR_ORIGINAL_NAME -> {
+                    server?.sendResponse(
+                        device, requestId, BluetoothGatt.GATT_SUCCESS, offset,
+                        connection.deviceName.toByteArray()
+                    )
+                    return
+                }
+                CUSTOM_ORIGINAL_MAC_ADDR -> {
+                    server?.sendResponse(
+                        device, requestId, BluetoothGatt.GATT_SUCCESS, offset,
+                        connection.device?.address?.toByteArray()
+                    )
+                    return
+                }
+                CUSTOM_PROXY_STATUS -> {
+                    server?.sendResponse(
+                        device, requestId, BluetoothGatt.GATT_SUCCESS, 0,
+                        byteArrayOf(connectionStateToProxyStatus)
+                    )
+                    return
+                }
+            }
 
             val gattClient = connection.gattClient ?: return
             val srcChar = srcCharacteristics[proxyChar.uuid.toString()] ?: return
@@ -361,6 +456,23 @@ class WheelBleProxy @Inject constructor(
         }
     }
 
+    private fun notifyProxyStatus(device: BluetoothDevice? = null, status: Byte? = null) {
+        val devices = device?.let { listOf(it) } ?: devicesReceivingStatus.values
+        proxyStatusCharacteristic?.let {
+            devices.forEach { device ->
+                it.value = byteArrayOf(status ?: connectionStateToProxyStatus)
+                server?.notifyCharacteristicChanged(device, it, true)
+            }
+        }
+    }
+
+
+    private val connectionStateToProxyStatus
+        get() = when (connection.connectionState) {
+            BleConnectionState.CONNECTED_READY -> PROXY_STATUS_WHEEL_CONNECTION_ACTIVE
+            else -> PROXY_STATUS_WHEEL_CONNECTION_INACTIVE
+        }
+
     private val adapter get() = context.getSystemService<BluetoothManager>()!!.adapter
 
     private val advertiserCallback = BluetoothUtils.getAdvertiserCallback(TAG)
@@ -375,5 +487,14 @@ class WheelBleProxy @Inject constructor(
             "00001800-0000-1000-8000-00805f9b34fb", // Generic Access
             "00001801-0000-1000-8000-00805f9b34fb", // Generic Attribute
         )
+
+        private val CUSTOM_SERVICE_UUID = BluetoothUtils.customGattUuid(0x1900)
+        private val CUSTOM_PROXY_STATUS = BluetoothUtils.customGattUuid(0x2C00)
+        private val CUSTOM_CHAR_ORIGINAL_NAME = BluetoothUtils.customGattUuid(0x2C01)
+        private val CUSTOM_ORIGINAL_MAC_ADDR = BluetoothUtils.customGattUuid(0x2C02)
+
+        private const val PROXY_STATUS_WHEEL_CONNECTION_INACTIVE = 0.toByte()
+        private const val PROXY_STATUS_WHEEL_CONNECTION_ACTIVE = 1.toByte()
+        private const val PROXY_STATUS_STOPPING = 2.toByte()
     }
 }

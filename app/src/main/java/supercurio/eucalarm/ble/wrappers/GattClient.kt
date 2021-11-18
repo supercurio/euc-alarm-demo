@@ -3,6 +3,7 @@ package supercurio.eucalarm.ble.wrappers
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
+import supercurio.eucalarm.utils.BluetoothUtils.CLIENT_CHARACTERISTIC_CONFIG
 import java.util.*
 import kotlin.concurrent.withLock
 
@@ -62,7 +63,7 @@ class GattClient(
         }
         gatt.setCharacteristicNotification(characteristic, status)
 
-        val desc = characteristic.getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG))
+        val desc = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG)
         desc.value = if (status)
             BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
         else
@@ -133,6 +134,5 @@ class GattClient(
 
     companion object {
         private const val TAG = "GattClient"
-        private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
     }
 }
