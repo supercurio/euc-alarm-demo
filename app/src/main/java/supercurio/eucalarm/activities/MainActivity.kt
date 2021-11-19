@@ -51,6 +51,7 @@ import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import supercurio.eucalarm.utils.RecordingProvider
+import supercurio.eucalarm.utils.Units.kmToMi
 import supercurio.eucalarm.utils.btManager
 import supercurio.eucalarm.utils.directBootContext
 import supercurio.eucalarm.utils.locationEnabled
@@ -104,7 +105,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var findWheels: FindWheels
 
     private lateinit var btManager: BluetoothManager
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -290,6 +290,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            var imperial by remember { mutableStateOf(generalConfig.unitsDistanceImperial) }
+
+            Row {
+                Text("Units: ")
+                Text(" Metric ")
+                RadioButton(selected = !imperial, onClick = {
+                    imperial = false
+                    generalConfig.unitsDistanceImperial = false
+                })
+                Text(" Imperial ")
+                RadioButton(selected = imperial, onClick = {
+                    imperial = true
+                    generalConfig.unitsDistanceImperial = true
+                })
+            }
+
             Row {
                 Text("Enable Wheel Proxy: ")
                 var wheelProxyChecked by remember { mutableStateOf(generalConfig.wheelProxy) }
@@ -298,7 +314,6 @@ class MainActivity : ComponentActivity() {
                     enableWheelProxy(it)
                 })
             }
-
 
             Button(onClick = { manualStop() }) { Text("Stop and exit app") }
 
@@ -346,7 +361,9 @@ class MainActivity : ComponentActivity() {
             }
 
             wheelData.speedFlow.collectAsState().value?.let {
-                BigTextData("Speed", "%2.1f", "km/h", it)
+                val speed = if (imperial) it.kmToMi else it
+                val unit = if (imperial) " mph" else "km/h"
+                BigTextData("Speed", "%2.1f", unit, speed)
             }
             wheelData.currentFlow.collectAsState().value?.let {
                 BigTextData("Current", "%.2f", "A", it)
@@ -357,11 +374,20 @@ class MainActivity : ComponentActivity() {
             wheelData.temperatureFlow.collectAsState().value?.let {
                 BigTextData("Temperature", "%.2f", "°C", it)
             }
+
+            val distanceUnit = if (imperial) "mi" else "km"
+
             wheelData.tripDistanceFlow.collectAsState().value?.let {
-                SmallTextData(title = "Trip Distance", format = "%.3f", unit = "km", value = it)
+                SmallTextData(
+                    "Trip Distance", "%.3f", distanceUnit,
+                    if (imperial) it.kmToMi else it
+                )
             }
             wheelData.totalDistanceFlow.collectAsState().value?.let {
-                SmallTextData(title = "Total Distance", format = "%.3f", unit = "km", value = it)
+                SmallTextData(
+                    "Total Distance", "%.3f", distanceUnit,
+                    if (imperial) it.kmToMi else it
+                )
             }
 
             wheelData.beeperFlow.collectAsState().value?.let { beeper ->

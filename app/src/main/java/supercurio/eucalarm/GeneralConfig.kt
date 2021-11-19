@@ -24,8 +24,13 @@ class GeneralConfig @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean(KEY_WHEEL_PROXY, false)
         set(value) = prefs.edit { putBoolean(KEY_WHEEL_PROXY, value) }
 
+    var unitsDistanceImperial
+        get() = prefs.getBoolean(KEY_UNITS_DISTANCE_IMPERIAL, false)
+        set(value) = prefs.edit { putBoolean(KEY_UNITS_DISTANCE_IMPERIAL, value) }
+
     companion object {
         private const val KEY_BT_NAME = "btName"
         private const val KEY_WHEEL_PROXY = "wheelProxy"
+        private const val KEY_UNITS_DISTANCE_IMPERIAL = "unitsDistanceImperial"
     }
 }
