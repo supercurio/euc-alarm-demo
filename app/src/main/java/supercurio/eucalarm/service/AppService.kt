@@ -2,6 +2,7 @@ package supercurio.eucalarm.service
 
 import android.app.ActivityManager
 import android.app.Service
+import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -26,6 +27,7 @@ import supercurio.eucalarm.di.CoroutineScopeProvider
 import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.power.PowerManagement
+import supercurio.eucalarm.receivers.BluetoothConnectionReceiver
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -63,12 +65,13 @@ class AppService : Service() {
     @Inject
     lateinit var appLog: AppLog
 
+    private val bluetoothConnectionReceiver = BluetoothConnectionReceiver()
 
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "onCreate")
 
-        registerReceiver(broadcastReceiver, IntentFilter().apply {
+        registerReceiver(actionsReceiver, IntentFilter().apply {
             addAction(STOP_BROADCAST)
             addAction(DISCONNECT_BROADCAST)
         })
@@ -79,6 +82,11 @@ class AppService : Service() {
 
         updateNotificationBasedOnState()
         updateNotificationBasedOnRecording()
+
+        registerReceiver(
+            bluetoothConnectionReceiver,
+            IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED)
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -108,14 +116,15 @@ class AppService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
-        unregisterReceiver(broadcastReceiver)
+        unregisterReceiver(actionsReceiver)
+        unregisterReceiver(bluetoothConnectionReceiver)
 
         appLog.log("Service destroyed")
         startedBySystem = true
     }
 
 
-    private val broadcastReceiver = object : BroadcastReceiver() {
+    private val actionsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 STOP_BROADCAST -> appLifecycle.off()

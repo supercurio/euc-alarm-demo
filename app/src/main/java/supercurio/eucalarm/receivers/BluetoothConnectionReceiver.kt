@@ -6,11 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
-import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.ble.BleConnectionState
 import supercurio.eucalarm.ble.DevicesNamesCache
 import supercurio.eucalarm.ble.WheelConnection
-import supercurio.eucalarm.di.AppLifecycle
 import supercurio.eucalarm.log.AppLog
 import javax.inject.Inject
 
@@ -19,12 +17,6 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var devicesNamesCache: DevicesNamesCache
-
-    @Inject
-    lateinit var appStateStore: AppStateStore
-
-    @Inject
-    lateinit var appLifecycle: AppLifecycle
 
     @Inject
     lateinit var wheelConnection: WheelConnection
@@ -46,7 +38,6 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
         if (known && CONNECT_ALREADY_CONNECTED_STATES.contains(wheelConnection.connectionState)) {
             appLog.log("Connect following another app connection to known device: ${device.name}")
-            appLifecycle.on()
             wheelConnection.connectAlreadyConnectedDevice(device)
         }
     }

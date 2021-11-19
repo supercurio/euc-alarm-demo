@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
     // TODO:
     //  Make a better presentation to highlight Speed, Voltage, Motor current and main actions
     //  Show event log in UI, allow to share it or clear it
+    //  Allow to choose view in mph
 
     private val activityScope = MainScope() + CoroutineName(TAG)
 
