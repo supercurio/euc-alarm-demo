@@ -143,9 +143,9 @@ class AppService : Service() {
 
     private fun notificationTextBasedOnConnectionState(state: BleConnectionState) =
         when (state) {
-            BleConnectionState.CONNECTED -> "Connected to ${wheelConnection.deviceName}"
-            BleConnectionState.CONNECTING -> "Connecting to ${wheelConnection.deviceName}"
-            BleConnectionState.CONNECTED_READY -> "Connected (ready) to ${wheelConnection.deviceName}"
+            BleConnectionState.CONNECTED -> "Connecting 2/2 to ${wheelConnection.deviceName}"
+            BleConnectionState.CONNECTING -> "Connecting 1/2 to ${wheelConnection.deviceName}"
+            BleConnectionState.CONNECTED_READY -> "Connected to ${wheelConnection.deviceName}"
             BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
             BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
             BleConnectionState.BLUETOOTH_OFF -> "Bluetooth is off"

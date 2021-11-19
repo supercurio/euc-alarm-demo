@@ -63,18 +63,13 @@ class Notifications @Inject constructor(
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle(title)
             .setContentIntent(startActivityPi)
-            .addAction(0, "Stop", pendingIntentFor(AppService.STOP_BROADCAST))
+            .addAction(0, "Stop and exit", pendingIntentFor(AppService.STOP_BROADCAST))
             .apply {
                 if (wheelConnection.connectionStateFlow.value.canDisconnect)
                     addAction(
                         0, "Disconnect wheel",
                         pendingIntentFor(AppService.DISCONNECT_BROADCAST)
                     )
-//                if (recorder.isRecording.value)
-//                    addAction(
-//                        0, "Stop Recording",
-//                        pendingIntentFor(AppService.STOP_RECORDING_BROADCAST)
-//                    )
             }
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
