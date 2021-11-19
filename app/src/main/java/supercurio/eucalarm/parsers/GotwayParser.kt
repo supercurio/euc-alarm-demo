@@ -162,7 +162,11 @@ class GotwayParser(private val wheelData: WheelDataInterface) {
                 val unknown3 = frame.bytes(3).toHexString()
 
                 wheelData.totalDistance = totalDistance
-                wheelData.beeper = beeper.toBoolean()
+
+                // Some firmwares report beeper status when changing light settings.
+                // In order to filter some unnecessary confirmation beeps as alerts,
+                // require speed to not be zero.
+                wheelData.beeper = if (wheelData.speed == 0.0) false else beeper.toBoolean()
 
                 wheelData.gotNewData()
 
