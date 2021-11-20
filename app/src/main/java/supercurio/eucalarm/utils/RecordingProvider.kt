@@ -16,6 +16,8 @@ class RecordingProvider(
 
     val inputStream get() = realInputStream
 
+    val fileName get() = file?.name ?: "Sample MSP HS recording"
+
     private var realInputStream: InputStream = open()
 
     fun available() = realInputStream.available()

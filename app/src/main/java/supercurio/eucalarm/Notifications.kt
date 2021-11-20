@@ -12,7 +12,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.activities.MainActivity
-import supercurio.eucalarm.ble.WheelBleRecorder
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.service.AppService
 import java.text.SimpleDateFormat
@@ -24,7 +23,6 @@ import javax.inject.Singleton
 class Notifications @Inject constructor(
     @ApplicationContext private val context: Context,
     private val wheelConnection: WheelConnection,
-    private val recorder: WheelBleRecorder,
 ) {
     private val nm = context.getSystemService<NotificationManager>()!!
 
@@ -63,7 +61,11 @@ class Notifications @Inject constructor(
             .setSmallIcon(R.drawable.ic_stat_donut_small)
             .setContentTitle(title)
             .setContentIntent(startActivityPi)
-            .addAction(0, "Stop and exit", pendingIntentFor(AppService.STOP_BROADCAST))
+            .addAction(
+                0,
+                context.getString(R.string.stop_exit),
+                pendingIntentFor(AppService.STOP_BROADCAST)
+            )
             .apply {
                 if (wheelConnection.connectionStateFlow.value.canDisconnect)
                     addAction(

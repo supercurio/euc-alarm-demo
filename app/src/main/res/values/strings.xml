@@ -2,4 +2,15 @@
     <string name="app_name">EUC Alarm</string>
     <string name="service_channel_name">Background operation indicator</string>
     <string name="alert_channel_name">Wheel alert</string>
+    <string name="permission_request_explanation">The location permission is required by the system
+        find wheels via Bluetooth.
+        \n\nHowever no location data (like GPS) is used or collected.
+    </string>
+    <string name="permission_request_button">Request permission to continue</string>
+    <string name="permission_denied_explanation">Location permission was denied.\n\nUnfortunately,
+        the app is not able to find and connect to your wheel via Bluetooth.
+        \n\nPlease go to Settings and grant the Location permission manually."</string>
+    <string name="open_app_settings_button">Open app settings</string>
+    <string name="stop_exit">Stop and exit</string>
+    <string name="cancel">Cancel</string>
 </resources>

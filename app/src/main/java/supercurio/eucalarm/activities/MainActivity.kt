@@ -14,6 +14,8 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -164,19 +167,18 @@ class MainActivity : ComponentActivity() {
         PermissionRequired(
             permissionState = locationPermissionState,
             permissionNotGrantedContent = {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "The location permission is used by the app to find wheels over" +
-                                "Bluetooth Low Energy, a system requirement.\nHowever actual " +
-                                "location data (like GPS) is not used in the app."
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxSize()
+                ) {
+                    Text(stringResource(R.string.permission_request_explanation))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { locationPermissionState.launchPermissionRequest() },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Request permission to continue")
+                        Text(stringResource(R.string.permission_request_button))
                     }
                 }
             },
@@ -184,19 +186,16 @@ class MainActivity : ComponentActivity() {
                 Column(
                     modifier = Modifier
                         .padding(16.dp)
+                        .fillMaxSize()
                 ) {
-                    Text(
-                        "Location permission was denied.\nUnfortunately, the app is not able to " +
-                                "to find your wheel via Bluetooth to connect to. Please go to Settings " +
-                                "and grant the Location permission manually."
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(stringResource(R.string.permission_denied_explanation))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
                             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                                 .apply { data = Uri.fromParts("package", packageName, null) })
                         }, modifier = Modifier.fillMaxWidth()
-                    ) { Text("Open App Settings") }
+                    ) { Text(stringResource(R.string.open_app_settings_button)) }
                 }
             }
         ) {
@@ -211,21 +210,27 @@ class MainActivity : ComponentActivity() {
 
         Scaffold(
             scaffoldState = scaffoldState,
-            topBar = { MyTopAppBar() },
-            content = { MyLayout() }
+            topBar = { MyTopAppBar(scaffoldState) },
+            content = { MyLayout(scaffoldState) }
         )
     }
 
 
     @Composable
-    private fun MyTopAppBar() {
+    private fun MyTopAppBar(scaffoldState: ScaffoldState) {
 
         val showExitDialog = remember { mutableStateOf(false) }
+        val snackBarCoroutineScope = rememberCoroutineScope()
 
         TopAppBar(
             title = { Text("${getString(R.string.app_name)} v${BuildConfig.VERSION_NAME} ") },
             actions = {
-                IconButton(onClick = { shareRecording() }) {
+                IconButton(onClick = {
+                    if (!shareRecording()) snackBarCoroutineScope.launch {
+                        scaffoldState.snackbarHostState
+                            .showSnackbar("No wheel data recording to share")
+                    }
+                }) {
                     Icon(
                         Icons.Filled.Share,
                         contentDescription = "Share",
@@ -235,7 +240,7 @@ class MainActivity : ComponentActivity() {
                 IconButton(onClick = { showExitDialog.value = true }) {
                     Icon(
                         Icons.Filled.Close,
-                        contentDescription = "Stop and exit app",
+                        contentDescription = stringResource(R.string.stop_exit),
                     )
                 }
             }
@@ -245,11 +250,11 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun MyLayout() {
+    private fun MyLayout(scaffoldState: ScaffoldState? = null) {
         Column {
             val imperial = remember { mutableStateOf(generalConfig.unitsDistanceImperial) }
 
-            ButtonsAndSettings(imperial)
+            ButtonsAndSettings(scaffoldState, imperial)
             WheelDataView(imperial)
             BeeperView()
         }
@@ -257,7 +262,11 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
-    private fun ButtonsAndSettings(imperial: MutableState<Boolean>) {
+    private fun ButtonsAndSettings(
+        scaffoldState: ScaffoldState?,
+        imperialState: MutableState<Boolean>
+    ) {
+        var imperial by imperialState
         Column(modifier = Modifier.padding(8.dp)) {
 
             val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
@@ -295,7 +304,11 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     confirmButton = {},
-                    dismissButton = { TextButton(onClick = { dismiss() }) { Text("Cancel") } },
+                    dismissButton = {
+                        TextButton(onClick = { dismiss() }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
                     properties = DialogProperties(usePlatformDefaultWidth = false),
                     modifier = Modifier.padding(32.dp)
                 )
@@ -322,38 +335,39 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Find Wheel") }
             } else {
-                val stateText = when (bleConnectionState) {
-                    BleConnectionState.CONNECTED_READY -> "connected"
-                    BleConnectionState.DISCONNECTED_RECONNECTING -> "reconnecting"
-                    BleConnectionState.CONNECTING -> "connecting 1/2"
-                    BleConnectionState.CONNECTED -> "connecting 2/2"
-                    BleConnectionState.SCANNING -> "scanning"
-                    else -> ""
-                }
+                Crossfade(targetState = bleConnectionState) { state ->
+                    val stateText = when (state) {
+                        BleConnectionState.CONNECTED_READY -> "connected"
+                        BleConnectionState.DISCONNECTED_RECONNECTING -> "reconnecting"
+                        BleConnectionState.CONNECTING -> "connecting 1/2"
+                        BleConnectionState.CONNECTED -> "connecting 2/2"
+                        BleConnectionState.SCANNING -> "scanning"
+                        else -> ""
+                    }
 
-                Button(
-                    onClick = { wheelConnection.disconnectDevice() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Disconnect ${wheelConnection.deviceName} ($stateText)")
+                    Button(
+                        onClick = { wheelConnection.disconnectDevice() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Disconnect ${wheelConnection.deviceName} ($stateText)")
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
 
 
             Row {
-                Text("Units:")
                 Spacer(modifier = Modifier.width(8.dp))
-                RadioButton(selected = !imperial.value, onClick = {
-                    imperial.value = false
+                RadioButton(selected = !imperial, onClick = {
+                    imperial = false
                     generalConfig.unitsDistanceImperial = false
                 })
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Metric")
 
                 Spacer(modifier = Modifier.width(8.dp))
-                RadioButton(selected = imperial.value, onClick = {
-                    imperial.value = true
+                RadioButton(selected = imperial, onClick = {
+                    imperial = true
                     generalConfig.unitsDistanceImperial = true
                 })
                 Spacer(modifier = Modifier.width(4.dp))
@@ -380,18 +394,24 @@ class MainActivity : ComponentActivity() {
 
             if (!bleConnectionState.canDisconnect) {
                 val playingState by player.playingState.collectAsState()
-                if (!playingState)
-                    Button(onClick = { playLastRecording() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Replay last recording")
+
+                Crossfade(targetState = !playingState) { state ->
+                    when (state) {
+                        true -> Button(
+                            onClick = { playLastRecording(scaffoldState) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Replay last recording") }
+
+                        false -> Button(
+                            onClick = { player.stop() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Stop replay") }
                     }
-                else
-                    Button(onClick = { player.stop() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Stop replay")
-                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (simulator.isSupported) {
+                if (BuildConfig.DEBUG && simulator.isSupported) {
                     var simulationState by remember { mutableStateOf(false) }
                     if (!simulationState)
                         Button(onClick = {
@@ -410,17 +430,19 @@ class MainActivity : ComponentActivity() {
 
 
             val recordingState by wheelBleRecorder.isRecording.collectAsState()
-            if (bleConnectionState == BleConnectionState.CONNECTED_READY && !recordingState) {
-                Button(onClick = { record() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Record")
+            Crossfade(targetState = recordingState) { state ->
+                if (bleConnectionState == BleConnectionState.CONNECTED_READY && !state) {
+                    Button(onClick = { record() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Record")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            if (recordingState) {
-                Button(onClick = { stopRecording() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Stop recording")
+                if (state) {
+                    Button(onClick = { stopRecording() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Stop recording")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
             wheelConnection.parserConfigFlow.collectAsState().value.let { config ->
@@ -438,11 +460,13 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun WheelDataView(imperial: MutableState<Boolean>) {
+    private fun WheelDataView(imperialState: MutableState<Boolean>) {
+        val imperial by imperialState
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+
             wheelData.speedFlow.collectAsState().value?.let {
-                val speed = if (imperial.value) it.kmToMi else it
-                val unit = if (imperial.value) " mph" else "km/h"
+                val speed = if (imperial) it.kmToMi else it
+                val unit = if (imperial) " mph" else "km/h"
                 BigTextData("Speed", "%2.1f", unit, speed)
             }
             wheelData.currentFlow.collectAsState().value?.let {
@@ -455,18 +479,18 @@ class MainActivity : ComponentActivity() {
                 BigTextData("Temperature", "%.2f", "°C", it)
             }
 
-            val distanceUnit = if (imperial.value) "mi" else "km"
+            val distanceUnit = if (imperial) "mi" else "km"
 
             wheelData.tripDistanceFlow.collectAsState().value?.let {
                 SmallTextData(
                     "Trip Distance", "%.3f", distanceUnit,
-                    if (imperial.value) it.kmToMi else it
+                    if (imperial) it.kmToMi else it
                 )
             }
             wheelData.totalDistanceFlow.collectAsState().value?.let {
                 SmallTextData(
                     "Total Distance", "%.3f", distanceUnit,
-                    if (imperial.value) it.kmToMi else it
+                    if (imperial) it.kmToMi else it
                 )
             }
         }
@@ -563,8 +587,16 @@ class MainActivity : ComponentActivity() {
                                 "Leaving this app in the background does not use extra battery."
                     )
                 },
-                confirmButton = { TextButton(onClick = { manualStop() }) { Text("Stop and exit") } },
-                dismissButton = { TextButton(onClick = { show=false  }) {Text("Cancel") }},
+                confirmButton = {
+                    TextButton(onClick = { manualStop() }) {
+                        Text(stringResource(R.string.stop_exit))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { show = false }) {
+                        Text(stringResource(id = R.string.cancel))
+                    }
+                },
             )
         }
     }
@@ -588,10 +620,10 @@ class MainActivity : ComponentActivity() {
         shareRecording()
     }
 
-    private fun shareRecording() {
+    private fun shareRecording(): Boolean {
         var recordingFile = RecordingProvider.getLastRecordingFile(
             applicationContext.directBootContext
-        ) ?: return
+        ) ?: return false
 
         // copy the file to internal storage
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -618,14 +650,21 @@ class MainActivity : ComponentActivity() {
         }
 
         startActivity(Intent.createChooser(shareIntent, "Recording"))
+
+        return true
     }
 
-    private fun playLastRecording() {
+    private fun playLastRecording(scaffoldState: ScaffoldState?) {
         val recording = RecordingProvider.getLastRecordingOrSample(applicationContext)
+
         activityScope.launch {
-            // player?.printAsJson()
-            player.replay(recording, wheelData)
+            scaffoldState?.snackbarHostState
+                ?.showSnackbar(
+                    message = "Replay from ${recording.fileName}",
+                    duration = SnackbarDuration.Short
+                )
         }
+        activityScope.launch { player.replay(recording, wheelData) }
     }
 
     private fun simulateLastRecording() {
