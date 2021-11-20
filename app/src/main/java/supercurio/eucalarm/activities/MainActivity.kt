@@ -15,7 +15,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -602,7 +601,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun enableWheelProxy(enabled: Boolean) {
-        generalConfig.wheelProxy = true
+        generalConfig.wheelProxy = enabled
         when {
             enabled && wheelConnection.connectionState == BleConnectionState.CONNECTED_READY ->
                 wheelBleProxy.start()
