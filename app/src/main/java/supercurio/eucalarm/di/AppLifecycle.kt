@@ -2,6 +2,7 @@ package supercurio.eucalarm.di
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.launch
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.WheelsConfig
 import supercurio.eucalarm.appstate.AppStateStore
@@ -61,15 +62,17 @@ class AppLifecycle @Inject constructor(
 
         notifications.muted = true
 
-        simulator.shutdown()
-        wheelConnection.shutdown()
-        powerManagement.releaseAll()
-        wheelData.clear()
-        wheelBleRecorder.shutDown()
-        wheelBleProxy.shutdown()
-        alert.shutdown()
-        AppService.enable(context, false)
-        appStateStore.setState(OffState)
+        scopeProvider.app.launch {
+            simulator.shutdown()
+            wheelConnection.shutdown()
+            powerManagement.releaseAll()
+            wheelData.clear()
+            wheelBleRecorder.shutDown()
+            wheelBleProxy.shutdown()
+            alert.shutdown()
+            AppService.enable(context, false)
+            appStateStore.setState(OffState)
+        }
         scopeProvider.cancelAll()
     }
 

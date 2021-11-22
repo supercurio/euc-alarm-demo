@@ -145,7 +145,7 @@ class WheelConnection @Inject constructor(
             context.unregisterReceiver(btStateChangeReceiver)
         }
 
-        findReconnectWheel.stopLeScan()
+        findReconnectWheel.stopLeScan(immediately = true)
 
         shouldStayConnected = false
         powerManagement.removeLock(TAG)

@@ -53,10 +53,10 @@ class FindWheels(private val context: Context) {
         }
     }
 
-    fun stop() {
+    fun stop(immediately: Boolean = false) {
         keepFindingConnectedWheels = false
         findConnectedWheels?.stop()
-        scannerWrapper.stop()
+        scannerWrapper.stop(immediately =immediately)
         devicesFound.clear()
         if (isScanning.value) updateSateFlow()
         isScanning.value = false

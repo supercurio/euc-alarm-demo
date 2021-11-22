@@ -73,10 +73,10 @@ class LeScannerWrapper(
         }
     }
 
-    fun stop() {
+    fun stop(immediately: Boolean = false) {
         log("stop")
 
-        if (stopDelay == 0L) {
+        if (immediately) {
             stopScanNow()
         } else {
             delayedStopScope?.cancel()
@@ -99,6 +99,7 @@ class LeScannerWrapper(
 
     private fun stopScanNow() {
         callback?.let {
+            delayedStopScope?.cancel()
             scanner?.stopScan(it)
             scanner?.flushPendingScanResults(it)
             callback = null

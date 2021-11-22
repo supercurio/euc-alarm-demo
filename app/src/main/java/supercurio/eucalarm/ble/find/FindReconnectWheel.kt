@@ -42,8 +42,8 @@ class FindReconnectWheel(context: Context, private val wheelConnection: WheelCon
         }
     }
 
-    fun stopLeScan() {
-        scannerWrapper.stop()
+    fun stopLeScan(immediately: Boolean = false) {
+        scannerWrapper.stop(immediately = immediately)
         isScanning = false
         reconnectToAddr = null
         scope?.cancel()
