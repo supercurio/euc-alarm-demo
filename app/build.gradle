@@ -16,7 +16,7 @@ android {
         applicationId "supercurio.eucalarm"
         minSdk 23
         targetSdk 31
-        versionCode 27
+        versionCode 28
         versionName "1.0.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
