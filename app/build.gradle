@@ -70,16 +70,9 @@ dependencies {
     implementation "com.google.dagger:hilt-android:$hilt_version"
     kapt "com.google.dagger:hilt-android-compiler:$hilt_version"
 
-    if (use_protobuf_lite) {
-        // Protobuf lite
-        implementation 'com.google.protobuf:protobuf-javalite:3.18.0'
-        implementation 'com.google.protobuf:protobuf-kotlin-lite:3.18.0'
-    } else {
-        // Protobuf full
-        implementation 'com.google.protobuf:protobuf-java:3.18.0'
-        implementation 'com.google.protobuf:protobuf-kotlin:3.18.0'
-        implementation 'com.google.protobuf:protobuf-java-util:3.18.0'
-    }
+    // Protobuf lite
+    implementation 'com.google.protobuf:protobuf-javalite:3.18.0'
+    implementation 'com.google.protobuf:protobuf-kotlin-lite:3.18.0'
 
     implementation "com.google.accompanist:accompanist-permissions:0.20.2"
 
@@ -103,7 +96,7 @@ protobuf {
         all().each { task ->
             task.builtins {
                 java {
-                    if (use_protobuf_lite) option 'lite'
+                    option 'lite'
                 }
                 // generate kotlin protobuf runtime
                 kotlin {}
