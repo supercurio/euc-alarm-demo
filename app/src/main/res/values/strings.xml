@@ -2,14 +2,29 @@
     <string name="app_name">EUC Alarm</string>
     <string name="service_channel_name">Background operation indicator</string>
     <string name="alert_channel_name">Wheel alert</string>
-    <string name="permission_request_explanation">The location permission is required by the system
-        find wheels via Bluetooth.
+    <string name="permission_request_explanation_location">The location permission is required by
+        the system to find wheels via Bluetooth.
         \n\nHowever no location data (like GPS) is used or collected.
     </string>
+    <string name="permission_request_explanation_bluetooth_scan">The Nearby Devices permission is
+        required by the system to find wheels via Bluetooth.
+    </string>
+    <string name="permission_request_explanation_bluetooth_connect">The Bluetooth Connect permission
+        is required to find already connected wheels or connect to your wheel.
+    </string>
+    <string name="permission_request_explanation_bluetooth_advertise">The Bluetooth Advertise
+        permission is required for the Wheel Proxy functionality.
+    </string>
     <string name="permission_request_button">Request permission to continue</string>
-    <string name="permission_denied_explanation">Location permission was denied.\n\nUnfortunately,
+    <string name="permission_denied_explanation_location">Location permission was denied.\n\nUnfortunately,
         the app is not able to find and connect to your wheel via Bluetooth.
         \n\nPlease go to Settings and grant the Location permission manually."</string>
+    <string name="permission_denied_explanation_bluetooth_scan">Nearby Devices permission was
+        denied.\n\nUnfortunately, the app is not able to find and connect to your wheel via Bluetooth.
+        \n\nPlease go to Settings and grant the Nearby Devices permission manually."</string>
+    <string name="permission_denied_explanation_bluetooth_connect">Bluetooth Connect permission was
+        denied.\n\nUnfortunately, the app is not able to connect to your wheel via Bluetooth.
+        \n\nPlease go to Settings and grant the Bluetooth Connect permission manually."</string>
     <string name="open_app_settings_button">Open app settings</string>
     <string name="stop_exit">Stop and exit</string>
     <string name="cancel">Cancel</string>

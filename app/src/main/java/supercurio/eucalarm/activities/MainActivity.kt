@@ -1,5 +1,6 @@
 package supercurio.eucalarm.activities
 
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
@@ -57,11 +58,8 @@ import supercurio.eucalarm.service.AppService
 import supercurio.eucalarm.ui.theme.EUCAlarmTheme
 import supercurio.eucalarm.ui.theme.GreenAlert
 import supercurio.eucalarm.ui.theme.RedAlert
-import supercurio.eucalarm.utils.RecordingProvider
+import supercurio.eucalarm.utils.*
 import supercurio.eucalarm.utils.Units.kmToMi
-import supercurio.eucalarm.utils.btManager
-import supercurio.eucalarm.utils.directBootContext
-import supercurio.eucalarm.utils.locationEnabled
 import javax.inject.Inject
 
 
@@ -127,7 +125,7 @@ class MainActivity : ComponentActivity() {
             EUCAlarmTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(color = MaterialTheme.colors.background) {
-                    PermissionsLayout()
+                    FullScreenPermissionsLayout()
                 }
             }
         }
@@ -158,21 +156,33 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalPermissionsApi::class)
     @Composable
-    private fun PermissionsLayout() {
-        val locationPermissionState =
-            rememberPermissionState(android.Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun FullScreenPermissionsLayout(requestParams: PermissionRequestParams? = null) {
+
+        val params = requestParams
+            ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PermissionRequestParams(
+                permission = Manifest.permission.BLUETOOTH_SCAN,
+                explanation = R.string.permission_request_explanation_bluetooth_scan,
+                permissionDeniedExplanation = R.string.permission_denied_explanation_bluetooth_scan,
+            ) else PermissionRequestParams(
+                permission = Manifest.permission.ACCESS_FINE_LOCATION,
+                explanation = R.string.permission_request_explanation_location,
+                permissionDeniedExplanation = R.string.permission_denied_explanation_location,
+            )
+
+        val permissionsState = rememberPermissionState(params.permission)
+
         PermissionRequired(
-            permissionState = locationPermissionState,
+            permissionState = permissionsState,
             permissionNotGrantedContent = {
                 Column(
                     modifier = Modifier
                         .padding(16.dp)
                         .fillMaxSize()
                 ) {
-                    Text(stringResource(R.string.permission_request_explanation))
+                    Text(stringResource(params.explanation))
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        onClick = { locationPermissionState.launchPermissionRequest() },
+                        onClick = { permissionsState.launchPermissionRequest() },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.permission_request_button))
@@ -180,23 +190,48 @@ class MainActivity : ComponentActivity() {
                 }
             },
             permissionNotAvailableContent = {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxSize()
-                ) {
-                    Text(stringResource(R.string.permission_denied_explanation))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                .apply { data = Uri.fromParts("package", packageName, null) })
-                        }, modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(R.string.open_app_settings_button)) }
+                params.permissionDeniedExplanation?.let {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxSize()
+                    ) {
+                        Text(stringResource(it))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                    .apply {
+                                        data = Uri.fromParts("package", packageName, null)
+                                    })
+                            }, modifier = Modifier.fillMaxWidth()
+                        ) { Text(stringResource(R.string.open_app_settings_button)) }
+                    }
                 }
             }
         ) {
-            MyScaffold()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val connectParams = PermissionRequestParams(
+                    permission = Manifest.permission.BLUETOOTH_CONNECT,
+                    explanation = R.string.permission_request_explanation_bluetooth_connect,
+                )
+                val connectPermissionsState = rememberPermissionState(connectParams.permission)
+
+                val advertiseParams = PermissionRequestParams(
+                    permission = Manifest.permission.BLUETOOTH_ADVERTISE,
+                    explanation = R.string.permission_request_explanation_bluetooth_advertise,
+                )
+                val advertisePermissionState = rememberPermissionState(advertiseParams.permission)
+
+                when {
+                    !connectPermissionsState.hasPermission ->
+                        FullScreenPermissionsLayout(connectParams)
+                    !advertisePermissionState.hasPermission ->
+                        FullScreenPermissionsLayout(advertiseParams)
+                    else -> MyScaffold()
+                }
+
+            } else MyScaffold()
         }
     }
 
@@ -246,6 +281,7 @@ class MainActivity : ComponentActivity() {
         ConfirmExit(showExitDialog)
     }
 
+    @OptIn(ExperimentalPermissionsApi::class)
     @Composable
     private fun MyLayout(scaffoldState: ScaffoldState? = null) {
         Column {
@@ -257,6 +293,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Composable
+    private fun FindWheelButton(openDialog: MutableState<Boolean>, scanningState: Boolean) {
+        Button(
+            onClick = {
+                when {
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !locationEnabled ->
+                        startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+
+                    !btManager.adapter.isEnabled ->
+                        startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+
+                    else -> {
+                        openDialog.value = true
+                        findWheels.find()
+                    }
+                }
+            },
+            enabled = !scanningState,
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Find Wheel") }
+    }
+
+    @ExperimentalPermissionsApi
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     private fun ButtonsAndSettings(
@@ -267,13 +326,13 @@ class MainActivity : ComponentActivity() {
         Column(modifier = Modifier.padding(8.dp)) {
 
             val bleConnectionState by wheelConnection.connectionStateFlow.collectAsState()
-            var openDialog by remember { mutableStateOf(false) }
+            var openDialog = remember { mutableStateOf(false) }
 
-            if (openDialog) {
+            if (openDialog.value) {
                 fun dismiss() {
                     Log.i(TAG, "Dismiss")
                     findWheels.stop()
-                    openDialog = false
+                    openDialog.value = false
                 }
 
                 AlertDialog(
@@ -313,24 +372,7 @@ class MainActivity : ComponentActivity() {
             val scanningState by findWheels.isScanning.collectAsState()
 
             if (!bleConnectionState.canDisconnect) {
-                Button(
-                    onClick = {
-                        when {
-                            !locationEnabled ->
-                                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-
-                            !btManager.adapter.isEnabled ->
-                                startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-
-                            else -> {
-                                openDialog = true
-                                findWheels.find()
-                            }
-                        }
-                    },
-                    enabled = !scanningState,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Find Wheel") }
+                FindWheelButton(openDialog, scanningState)
             } else {
                 Crossfade(targetState = bleConnectionState) { state ->
                     val stateText = when (state) {
