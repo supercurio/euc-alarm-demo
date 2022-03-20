@@ -392,43 +392,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
 
 
-            Row {
-                Spacer(modifier = Modifier.width(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = !imperial, onClick = {
                     imperial = false
                     generalConfig.unitsDistanceImperial = false
                 })
-                Spacer(modifier = Modifier.width(4.dp))
                 Text("Metric")
 
-                Spacer(modifier = Modifier.width(8.dp))
                 RadioButton(selected = imperial, onClick = {
                     imperial = true
                     generalConfig.unitsDistanceImperial = true
                 })
-                Spacer(modifier = Modifier.width(4.dp))
                 Text("Imperial")
-
-                Spacer(modifier = Modifier.width(16.dp))
 
                 var wheelProxyChecked by remember { mutableStateOf(generalConfig.wheelProxy) }
                 Checkbox(checked = wheelProxyChecked, onCheckedChange = {
                     wheelProxyChecked = it
                     enableWheelProxy(it)
                 })
-                Spacer(modifier = Modifier.width(8.dp))
                 Text("Wheel Proxy")
             }
-            Spacer(modifier = Modifier.height(8.dp))
 
             if (bleConnectionState.canDisconnect) {
                 Button(onClick = { alert.toggle() }, modifier = Modifier.fillMaxWidth()) {
                     Text(text = "Toggle Alert")
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (!bleConnectionState.canDisconnect) {
@@ -448,8 +438,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
                 if (BuildConfig.DEBUG && simulator.isSupported) {
                     var simulationState by remember { mutableStateOf(false) }
                     if (!simulationState)
@@ -462,8 +450,6 @@ class MainActivity : ComponentActivity() {
                             simulator.stop()
                             simulationState = false
                         }, modifier = Modifier.fillMaxWidth()) { Text("Stop simulation") }
-
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
@@ -474,13 +460,11 @@ class MainActivity : ComponentActivity() {
                     Button(onClick = { record() }, modifier = Modifier.fillMaxWidth()) {
                         Text("Record")
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
                 if (state) {
                     Button(onClick = { stopRecording() }, modifier = Modifier.fillMaxWidth()) {
                         Text("Stop recording")
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
@@ -488,7 +472,6 @@ class MainActivity : ComponentActivity() {
                 if (config is GotwayConfig) {
                     Row {
                         Text("Voltage:")
-                        Spacer(modifier = Modifier.width(8.dp))
                         RadioButtons(67.2f, config)
                         RadioButtons(84f, config)
                         RadioButtons(100.8f, config)
@@ -595,9 +578,7 @@ class MainActivity : ComponentActivity() {
                     voltage = voltage
                 )
             })
-        Spacer(modifier = Modifier.width(4.dp))
         Text("${voltage}V")
-        Spacer(modifier = Modifier.width(8.dp))
     }
 
     @Preview(name = "Light Mode")
