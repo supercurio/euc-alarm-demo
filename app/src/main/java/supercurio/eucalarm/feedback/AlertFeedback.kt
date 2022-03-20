@@ -56,7 +56,7 @@ class AlertFeedback @Inject constructor(
             wheelDataStateFlows.beeperFlow.collect {
                 when (it) {
                     true -> playAlert()
-                    false -> stopAlert()
+                    false, null -> stopAlert()
                 }
             }
         }

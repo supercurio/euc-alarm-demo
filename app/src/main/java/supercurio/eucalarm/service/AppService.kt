@@ -108,6 +108,10 @@ class AppService : Service() {
                 wheelConnection.reconnectDeviceAddr(state.deviceAddr)
                 wheelBleRecorder.start(state.deviceAddr)
             }
+
+            else -> {
+                // Do nothing otherwise
+            }
         }
 
         appLog.log("Service started")
