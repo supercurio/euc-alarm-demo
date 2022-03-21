@@ -61,6 +61,7 @@ class AppLifecycle @Inject constructor(
         appLog.log("$TAG: OFF")
 
         notifications.muted = true
+        notifications.cancelWheelConnectionStatus()
 
         scopeProvider.app.launch {
             simulator.shutdown()

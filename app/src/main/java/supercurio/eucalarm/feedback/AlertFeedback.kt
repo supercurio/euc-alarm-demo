@@ -13,7 +13,6 @@ import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.Notifications
 import supercurio.eucalarm.ble.BleConnectionState

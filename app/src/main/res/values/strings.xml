@@ -1,7 +1,10 @@
 <resources>
     <string name="app_name">EUC Alarm</string>
     <string name="service_channel_name">Background operation indicator</string>
+    <string name="wheel_connection_channel_name">Wheel connection status</string>
     <string name="alert_channel_name">Wheel alert</string>
+    <string name="service_notice_1">Monitoring wheel connections to follow-connect automatically</string>
+    <string name="service_notice_2">This notification is safe to hide. Long tap for options</string>
     <string name="permission_request_explanation_location">The location permission is required by
         the system to find wheels via Bluetooth.
         \n\nHowever no location data (like GPS) is used or collected.

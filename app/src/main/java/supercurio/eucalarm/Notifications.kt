@@ -14,6 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import supercurio.eucalarm.activities.MainActivity
 import supercurio.eucalarm.ble.WheelConnection
 import supercurio.eucalarm.service.AppService
+import supercurio.eucalarm.utils.ConnectionStatusNotif
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -28,8 +29,8 @@ class Notifications @Inject constructor(
 
     var muted = false
 
-    private var currentMessage = ""
-    private var prevMessage = ""
+    private var currentConnectionStatusNotif: ConnectionStatusNotif? = null
+    private var prevConnectionStatusNotif: ConnectionStatusNotif? = null
 
     fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -39,6 +40,11 @@ class Notifications @Inject constructor(
                     NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID,
                     context.getString(R.string.service_channel_name),
                     NotificationManager.IMPORTANCE_LOW
+                ),
+                NotificationChannel(
+                    NOTIFICATION_CHANNEL_WHEEL_CONNECTION_STATUS_ID,
+                    context.getString(R.string.wheel_connection_channel_name),
+                    NotificationManager.IMPORTANCE_DEFAULT
                 ),
                 NotificationChannel(
                     NOTIFICATION_CHANNEL_ALERT_ID,
@@ -56,16 +62,25 @@ class Notifications @Inject constructor(
         }
     }
 
-    fun foregroundServiceNotificationBuilder(title: String): Notification =
+    fun foregroundServiceNotificationBuilder(): Notification =
         NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID)
             .setSmallIcon(R.drawable.ic_stat_donut_small)
-            .setContentTitle(title)
+            .setContentTitle(context.getString(R.string.service_notice_1))
+            .setContentText(context.getString(R.string.service_notice_2))
             .setContentIntent(startActivityPi)
             .addAction(
                 0,
                 context.getString(R.string.stop_exit),
                 pendingIntentFor(AppService.STOP_BROADCAST)
             )
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .build()
+
+    private fun wheelConnectionNotificationBuilder(connectionStatusNotif: ConnectionStatusNotif): Notification =
+        NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_WHEEL_CONNECTION_STATUS_ID)
+            .setSmallIcon(R.drawable.ic_stat_donut_small)
+            .setContentTitle(connectionStatusNotif.title)
+            .setContentIntent(startActivityPi)
             .apply {
                 if (wheelConnection.connectionStateFlow.value.canDisconnect)
                     addAction(
@@ -73,26 +88,30 @@ class Notifications @Inject constructor(
                         pendingIntentFor(AppService.DISCONNECT_BROADCAST)
                     )
             }
-            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setOngoing(true)
             .build()
 
-    fun updateOngoing(title: String, storeCurrent: Boolean = true) {
+    fun update(statusNotifInfo: ConnectionStatusNotif, storeCurrent: Boolean = true) {
         if (muted) return
 
-        if (storeCurrent) prevMessage = currentMessage
+        if (statusNotifInfo.dismiss) {
+            nm.cancel(CONNECTION_ID)
+            return
+        }
 
-        Log.i(TAG, "Update notification with title: $title")
-        nm.notify(SERVICE_ID, foregroundServiceNotificationBuilder(title))
-        currentMessage = title
+        if (storeCurrent) prevConnectionStatusNotif = currentConnectionStatusNotif
+
+        Log.i(TAG, "Update notification with title: ${statusNotifInfo.title}")
+        nm.notify(CONNECTION_ID, wheelConnectionNotificationBuilder(statusNotifInfo))
+        currentConnectionStatusNotif = statusNotifInfo
     }
 
-    fun rollbackOngoing() {
-        updateOngoing(prevMessage, false)
-    }
+    fun rollbackOngoing() = prevConnectionStatusNotif?.let { update(it, false) }
 
     fun notifyAlert() {
         if (muted) return
-        updateOngoing("Wheel alarm !")
+        update(ConnectionStatusNotif("Wheel alarm !", true), true)
 
         val time = System.currentTimeMillis()
         val formatter = SimpleDateFormat("HH:mm:ss")
@@ -107,6 +126,8 @@ class Notifications @Inject constructor(
 
         nm.notify(ALERT_ID, notif)
     }
+
+    fun cancelWheelConnectionStatus() = nm.cancel(CONNECTION_ID)
 
     fun cancelAlerts() {
         rollbackOngoing()
@@ -124,14 +145,15 @@ class Notifications @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-
     companion object {
         private const val TAG = "Notifications"
         private const val NOTIFICATION_CHANNEL_FOREGROUND_SERVICE_ID = "AppService"
+        private const val NOTIFICATION_CHANNEL_WHEEL_CONNECTION_STATUS_ID = "WheelConnectionStatus"
         private const val NOTIFICATION_CHANNEL_ALERT_ID = "Alerts"
 
         const val SERVICE_ID = 1
-        const val ALERT_ID = 2
+        const val CONNECTION_ID = 2
+        const val ALERT_ID = 3
         const val ALERT_TIMEOUT = 5000L
     }
 }

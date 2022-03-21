@@ -11,10 +11,8 @@ import android.os.Binder
 import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import supercurio.eucalarm.Notifications
-import supercurio.eucalarm.R
 import supercurio.eucalarm.appstate.AppStateStore
 import supercurio.eucalarm.appstate.ConnectedState
 import supercurio.eucalarm.appstate.RecordingState
@@ -28,6 +26,7 @@ import supercurio.eucalarm.feedback.AlertFeedback
 import supercurio.eucalarm.log.AppLog
 import supercurio.eucalarm.power.PowerManagement
 import supercurio.eucalarm.receivers.BluetoothConnectionReceiver
+import supercurio.eucalarm.utils.ConnectionStatusNotif
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -92,7 +91,7 @@ class AppService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand")
 
-        val notif = notifications.foregroundServiceNotificationBuilder(getString(R.string.app_name))
+        val notif = notifications.foregroundServiceNotificationBuilder()
 
         startForeground(Notifications.SERVICE_ID, notif)
 
@@ -140,30 +139,30 @@ class AppService : Service() {
 
     private fun updateNotificationBasedOnState() = scopes.app.launch {
         wheelConnection.connectionStateFlow.collect {
-            val title = notificationTextBasedOnConnectionState(it)
-            notifications.updateOngoing(title)
+            val title = notificationBasedOnConnectionState(it)
+            notifications.update(title)
         }
     }
 
-    private fun notificationTextBasedOnConnectionState(state: BleConnectionState) =
+    private fun notificationBasedOnConnectionState(state: BleConnectionState) =
         when (state) {
-            BleConnectionState.CONNECTED -> "Connecting 2/2 to ${wheelConnection.deviceName}"
-            BleConnectionState.CONNECTING -> "Connecting 1/2 to ${wheelConnection.deviceName}"
-            BleConnectionState.CONNECTED_READY -> "Connected to ${wheelConnection.deviceName}"
-            BleConnectionState.DISCONNECTED_RECONNECTING -> "Reconnecting to ${wheelConnection.deviceName}"
-            BleConnectionState.SCANNING -> "Scanning for ${wheelConnection.deviceName}"
-            BleConnectionState.BLUETOOTH_OFF -> "Bluetooth is off"
-            BleConnectionState.DISCONNECTED -> "Waiting for connection"
-            else -> "Standby"
+            BleConnectionState.CONNECTED -> ConnectionStatusNotif("Connecting 2/2 to ${wheelConnection.deviceName}")
+            BleConnectionState.CONNECTING -> ConnectionStatusNotif("Connecting 1/2 to ${wheelConnection.deviceName}")
+            BleConnectionState.CONNECTED_READY -> ConnectionStatusNotif("Connected to ${wheelConnection.deviceName}")
+            BleConnectionState.DISCONNECTED_RECONNECTING -> ConnectionStatusNotif("Reconnecting to ${wheelConnection.deviceName}")
+            BleConnectionState.SCANNING -> ConnectionStatusNotif("Scanning for ${wheelConnection.deviceName}")
+            BleConnectionState.BLUETOOTH_OFF -> ConnectionStatusNotif("Bluetooth is off")
+            BleConnectionState.DISCONNECTED -> ConnectionStatusNotif("Waiting for connection", true)
+            else -> ConnectionStatusNotif("Standby", true)
         }
 
     private fun updateNotificationBasedOnRecording() = scopes.app.launch {
         wheelBleRecorder.isRecording.collect { isRecording ->
             if (isRecording)
-                notifications.updateOngoing("Recording from ${wheelConnection.deviceName}")
+                notifications.update(ConnectionStatusNotif("Recording from ${wheelConnection.deviceName}"))
             else {
-                val title = notificationTextBasedOnConnectionState(wheelConnection.connectionState)
-                notifications.updateOngoing(title)
+                val title = notificationBasedOnConnectionState(wheelConnection.connectionState)
+                notifications.update(title)
             }
         }
     }
